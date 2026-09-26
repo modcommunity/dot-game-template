@@ -1,0 +1,28 @@
+# Godot 4
+.godot/
+/android/
+
+# THIS LIST IS THE DEPENDENCY MANIFEST. Every /addons/<name> line below is an addon this
+# game uses, and nothing else keeps that list: dot-bootstrap and dot-ci's resolve-deps.sh
+# both read these lines and link exactly these addons. The repository that gains a
+# dependency is the repository that has to ignore its link, so the list cannot go stale.
+# Keep it to what the game actually uses -- a pack is checked against the addons it names.
+/addons/dot_core
+/addons/dot_net
+/addons/dot_server
+/addons/dot_game
+
+# Where dot-ci's resolve-deps.sh clones the addons above, when you use it instead of
+# dot-bootstrap.
+/.deps/
+
+# Exports
+build/
+export_presets.cfg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/

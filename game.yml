@@ -1,0 +1,26 @@
+# This game's descriptor: what a server runs when it installs this repository's pack.
+#
+# It travels INSIDE the pack (dot-ci's package.sh --pack keeps it at the root), so a server
+# started with `TMC_GAMES=<site username>/<repo>` needs nothing else: `./server install-games`
+# fetches the pack, verifies its signature, and writes this file to content/<repo>/game.yml,
+# where the operator can edit it.
+#
+# content_id, version and kind are STAMPED by the installer from the pack it verified: the
+# site addresses a pack as <site username>/<repo name> and a re-published tag becomes
+# 1.2.0+r2, and this file cannot know either. What is written here for them is a placeholder.
+#
+# Every path is relative to the pack's mount point, which is this repository's root. They
+# MUST be relative: a server resolves them under res://dot_cloud/<content_id>/<version>/, and a
+# client refuses any absolute scene path a server sends it.
+
+content_id: you/dot-game-template
+version: 0.0.0
+kind: pack
+
+name: Coin Grab
+
+scene: scenes/tpl_server.tscn
+client_scene: scenes/tpl_client.tscn
+module: game/tpl_module.gd
+
+max_players: 16
