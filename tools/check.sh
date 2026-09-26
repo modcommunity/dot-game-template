@@ -83,7 +83,7 @@ if [ "${1:-}" != "--quick" ]; then
         printf '  %sFAIL%s tools/rename.sh refused a good name\n' "$RED" "$OFF"
         fails=$((fails + 1))
     else
-        left="$(cd "$copy" && grep -rlE '\btpl|\bTpl|dot-game-template' --exclude-dir=addons --exclude-dir=.git . ; \
+        left="$(cd "$copy" && grep -rlE '\btpl|\bTpl|dot-game-template' --exclude-dir=addons --exclude-dir=.git --exclude='*.md' . ; \
             find . -name 'tpl_*' -not -path './addons/*')"
         if [ -n "$left" ]; then
             printf '  %sFAIL%s the old names survived the rename in:\n%s\n' "$RED" "$OFF" "$left"

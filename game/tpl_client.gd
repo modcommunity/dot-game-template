@@ -6,14 +6,12 @@ const TplView := preload("tpl_view.gd")
 
 ## What a player runs: `scenes/tpl_client.tscn`. Offline, or joined to a server.
 ##
-## [b]Which of the two is decided by whether there is a link.[/b] The client shell creates a
-## [DotClientLink], connects it, and then loads this scene out of the pack the server named;
-## the link has published itself under [constant DotClientLink.SERVICE] by then. Run this
-## project on its own (`godot --path .`) and there is no link, so the same scene plays an
-## offline game instead -- the same rules, with nobody else in them. `--offline` forces it.
+## [b]Whether there is a link decides which.[/b] The client shell connects a [DotClientLink],
+## which registers itself, and then loads this scene out of the pack the server named. Run the
+## project on its own and there is no link, so it plays offline: the same rules, alone.
 ##
-## [b]The keys are read directly, not through the input map.[/b] project.godot does not travel
-## in a pack, so an action defined there does not exist in the shell that mounts this game.
+## [b]Keys are read directly, not through the input map:[/b] project.godot does not travel in
+## a pack, so an action defined there does not exist in the shell that mounts this game.
 
 ## The shell's link, when the shell sets it; otherwise found in the registry.
 var link: DotClientLink = null
@@ -38,7 +36,6 @@ var _touch_at: Vector2 = Vector2.ZERO
 func _ready() -> void:
 	if link == null:
 		link = DotRegistry.get_node_service(DotClientLink.SERVICE) as DotClientLink
-
 	var offline := link == null or OS.get_cmdline_user_args().has("--offline")
 	game = TplGame.new()
 	game.authoritative = offline
@@ -46,14 +43,12 @@ func _ready() -> void:
 	view = TplView.new()
 	view.game = game
 	add_child(view)
-
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_hud = Label.new()
 	_hud.position = Vector2(16.0, 12.0)
 	_hud.add_theme_font_size_override("font_size", 20)
 	layer.add_child(_hud)
-
 	if offline:
 		game.start()
 		local_id = 1
@@ -78,10 +73,8 @@ func _join() -> void:
 	# A placeholder rate. The server's arrives in the hello and replaces it.
 	net.config = TplBridge.net_config(60)
 	add_child(net)
-
 	if not net.setup().ok:
 		return
-
 	bridge = TplBridge.new()
 	add_child(bridge)
 	bridge.attach(game, net)
@@ -89,7 +82,6 @@ func _join() -> void:
 	bridge.open_link(link)
 	net.messages.seal()
 	net.start()
-
 	bridge.rtt_source = func() -> float: return float(maxi(0, link.ping_ms()))
 	bridge.hello_received.connect(func(player_id: int) -> void:
 		local_id = player_id
@@ -105,7 +97,6 @@ func _join() -> void:
 
 func _physics_process(delta: float) -> void:
 	var intent := _intent()
-
 	if net == null:
 		var me: TplGame.Player = game.player(local_id)
 		if me != null:
@@ -124,10 +115,11 @@ func _process(_delta: float) -> void:
 	if net != null:
 		# Every frame: this is what turns twenty snapshots a second into smooth motion.
 		net.interpolate_frame()
-
 	var lines := PackedStringArray()
 	for who: TplGame.Player in game.players.values():
 		lines.append("%s%s  %d" % ["> " if who.id == local_id else "  ", who.name, who.score])
+	if net == null:
+		lines.append("\nWASD, arrows or touch to move")
 	_hud.text = "\n".join(lines) if not lines.is_empty() else "Joining..."
 
 
@@ -135,17 +127,14 @@ func _process(_delta: float) -> void:
 func _intent() -> Vector2:
 	if steer.is_valid():
 		return steer.call()
-
 	var keys := Vector2(_held(KEY_D, KEY_RIGHT) - _held(KEY_A, KEY_LEFT), _held(KEY_S, KEY_DOWN) - _held(KEY_W, KEY_UP))
 	if keys != Vector2.ZERO:
 		return keys.normalized()
-
 	var me: TplGame.Player = game.player(local_id)
 	if _touching and me != null:
 		var toward := view.to_arena(_touch_at) - me.position
 		if toward.length() > TplGame.PLAYER_RADIUS * 0.5:
 			return toward.normalized()
-
 	return Vector2.ZERO
 
 

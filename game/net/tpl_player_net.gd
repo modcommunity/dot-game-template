@@ -18,7 +18,8 @@ var net_score: int = 0
 
 
 ## What replicates, and how precisely: sixteen bits over 1280 units is two hundredths of a
-## unit, far below a pixel. A new field goes at the END, like everything on the wire.
+## unit, far below a pixel. A server and its clients always mount the same version of this
+## file, so a field can be added anywhere; declare it, and copy it in the three methods below.
 func _register_net_vars() -> void:
 	replicate(&"net_x", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, TplGame.ARENA.x).bits(16).interpolated()
 	replicate(&"net_y", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, TplGame.ARENA.y).bits(16).interpolated()

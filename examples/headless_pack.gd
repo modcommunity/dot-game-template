@@ -6,17 +6,10 @@ const TplPaths := preload("../game/tpl_paths.gd")
 ##
 ##     godot --headless --path . res://examples/headless_pack.tscn
 ##
-## A published game is mounted at res://dot_cloud/<owner>/<repo>/<version>/ inside somebody
-## else's client, and two things that work perfectly here break there without an error:
-##
-## - [b]`class_name`.[/b] A mounted pack's global class names are never registered, so every
-##   script that uses one fails to compile in the shell. Reference your own scripts with a
-##   relative `preload("x.gd")`.
-## - [b]A bare "res://<one of your folders>/..." in a script.[/b] It resolves against the HOST,
-##   where your file is not. Wrap it where it is defined: `TplPaths.rebase("res://...")`.
-##
-## Both scanners run against a planted violation first and must find it, so a scanner that
-## has gone blind fails here rather than reporting a clean tree.
+## A published game is mounted at res://dot_cloud/<owner>/<repo>/<version>/, where a
+## `class_name` is never registered and a bare "res://<your folder>/..." names the host's file,
+## not yours. Both break without an error, so both are refused here -- by scanners that must
+## first find a planted violation, because a blind scanner reports a clean tree.
 
 ## Folders that never travel in a pack (dot-ci's package.sh drops them).
 const NOT_SHIPPED := ["addons", "examples", "tools", "screenshots"]
@@ -53,10 +46,8 @@ func _test_this_repository() -> void:
 	section("this repository")
 	var owned := _owned_folders()
 	check(owned.has("game") and owned.has("scenes"), "the shipped folders are %s" % [owned])
-
 	var names := PackedStringArray()
 	var bare := PackedStringArray()
-
 	for path in _scripts("res://"):
 		var source := FileAccess.get_file_as_string(path)
 		for hit in class_names_in(source):
@@ -64,7 +55,6 @@ func _test_this_repository() -> void:
 		if not path.trim_prefix("res://").get_slice("/", 0) in NOT_SHIPPED:
 			for hit in bare_paths_in(source, owned):
 				bare.append("%s: %s" % [path, hit])
-
 	check(names.is_empty(), "no script declares a class_name %s" % [names])
 	check(bare.is_empty(), "no shipped script names its own files by a bare res:// path %s" % [bare])
 	done()
@@ -86,7 +76,6 @@ func _test_the_descriptor() -> void:
 	for line in FileAccess.get_file_as_string("res://game.yml").split("\n"):
 		if not line.begins_with("#") and line.contains(": "):
 			fields[line.get_slice(": ", 0)] = line.get_slice(": ", 1).strip_edges()
-
 	var missing := PackedStringArray()
 	for key in ["scene", "client_scene", "module"]:
 		var path := str(fields.get(key, ""))

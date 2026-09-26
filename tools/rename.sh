@@ -18,8 +18,9 @@
 # one), so nothing stops two games' files colliding except their names. A prefix you choose
 # once keeps yours apart from every other game a server or a developer has installed.
 #
-# Run it once, on a clean checkout, then re-import and run tools/check.sh. It deletes .godot/
-# (the editor's cache), which still holds the old file names and would otherwise disagree.
+# Markdown is left alone: README.md and CLAUDE.md describe the template, and are yours to
+# rewrite or delete. Run it once, on a clean checkout, then re-import and run tools/check.sh.
+# It deletes .godot/ (the editor's cache), which still holds the old file names.
 set -euo pipefail
 
 usage() { printf 'usage: tools/rename.sh <prefix> <repo-name>   e.g. tools/rename.sh cr crate-rush\n' >&2; exit 2; }
@@ -54,6 +55,7 @@ fi
 changed=0
 for f in "${FILES[@]}"; do
     [ -f "$f" ] || continue
+    [[ "$f" == *.md ]] && continue
     grep -Iq . "$f" 2>/dev/null || continue          # text files only
     if grep -qE '\btpl|\bTpl|dot-game-template' "$f"; then
         sed -i -E "s/\\btpl/${NEW}/g; s/\\bTpl/${CAP}/g; s/dot-game-template/${REPO}/g" "$f"

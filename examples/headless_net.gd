@@ -4,15 +4,11 @@ extends "suite.gd"
 ##
 ##     godot --headless --path . res://examples/headless_net.tscn
 ##
-## The server is a [DotServer] that loads this game's module BY PATH, as a deployed server
-## does. The client is a [DotClientLink] -- what the client shell connects with -- and this
-## game's own client scene on top of it. Each side has its own [MultiplayerAPI], so every RPC
-## crosses the socket. Nothing here reaches into the game to move anybody: the client is
-## steered through its `steer` hook, exactly as a keyboard would steer it.
-##
-## What this cannot see is a PACK: here the game's files are at res://. That is
-## dot-server-deploy's examples/template_client.tscn, which publishes this repository and runs
-## it mounted.
+## A [DotServer] loads the module BY PATH, as a deployed one does; a [DotClientLink] (what the
+## client shell connects with) carries this game's client scene. Each side has its own
+## [MultiplayerAPI], so every RPC crosses the socket, and the client is steered through its
+## `steer` hook as a keyboard would steer it. It cannot see a PACK -- here the files are at
+## res:// -- which is dot-server-deploy's examples/template_client.tscn.
 
 const PORT := 28911
 const SERVER_DIR := "user://tpl_headless_net"
@@ -33,12 +29,10 @@ func _ready() -> void:
 func _run() -> void:
 	print("dot-game-template: a server and a client over a socket")
 	DotPaths.remove_tree(SERVER_DIR)
-
 	if await _boot() and await _test_join():
 		await _test_moving()
 		await _test_a_coin()
 		await _test_leaving()
-
 	if _link != null:
 		_link.disconnect_from_server("done")
 	if _server != null:
@@ -50,7 +44,6 @@ func _run() -> void:
 
 func _boot() -> bool:
 	section("a dedicated server boots with this game")
-
 	var server_side := Node.new()
 	server_side.name = "ServerSide"
 	add_child(server_side)
@@ -59,7 +52,6 @@ func _boot() -> bool:
 	add_child(_client_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), server_side.get_path())
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _client_side.get_path())
-
 	var config := DotServerConfig.new()
 	config.hostname = "template test"
 	config.log_level = "warn"
@@ -74,14 +66,12 @@ func _boot() -> bool:
 	config.autoexec_config = ""
 	# Off, or this run never exits: the console reads stdin on a thread nothing can wake.
 	config.stdin_console_enabled = false
-
 	_server = DotServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	server_side.add_child(_server)
-
 	var booted: DotResult = await _server.boot()
 	if not check(booted.ok, "the server listens on %d" % PORT):
 		done()
@@ -93,7 +83,6 @@ func _boot() -> bool:
 	_server.games.add_game(descriptor)
 	var changed: DotResult = await _server.games.change_game(descriptor.game_id, "boot")
 	check(changed.ok, "the server scene loads and the world registers itself")
-
 	var loaded: DotResult = await _server.modules.load_module(MODULE)
 	check(loaded.ok, "the module loads by path")
 	done()
@@ -109,16 +98,13 @@ func _test_join() -> bool:
 	_link.name = "Server"
 	_link.player_name = "Ada"
 	_client_side.add_child(_link)
-
 	var spawned := [false]
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	await _link.connect_to_server("127.0.0.1:%d" % PORT)
 	check(await _until(func() -> bool: return spawned[0]), "it finishes signing on")
-
 	_client = (load(CLIENT_SCENE) as PackedScene).instantiate()
 	_client.set("link", _link)
 	_client_side.add_child(_client)
-
 	var told := await _until(func() -> bool: return int(_client.get("local_id")) != 0)
 	check(told, "the client scene is told which player it is")
 	check(_server_game().players.size() == 1, "the server seated one player")
@@ -128,7 +114,6 @@ func _test_join() -> bool:
 
 func _test_moving() -> void:
 	section("moving is replicated")
-
 	var before: Vector2 = _server_player().position
 	_client.set("steer", func() -> Vector2: return Vector2.RIGHT)
 	var moved := await _until(func() -> bool: return _server_player().position.x > before.x + 100.0)
@@ -144,7 +129,6 @@ func _test_moving() -> void:
 
 func _test_a_coin() -> void:
 	section("a coin is collected, and the score reaches the client")
-
 	var game: Node = _client.get("game")
 	# Steered at the nearest coin the CLIENT can see, every frame, as a player would.
 	_client.set("steer", func() -> Vector2:
@@ -155,7 +139,6 @@ func _test_a_coin() -> void:
 				best = spot
 		return (best - me).normalized()
 	)
-
 	var scored := await _until(func() -> bool: return _server_player().score > 0)
 	check(scored, "the server scored a coin for the player")
 	check(await _until(func() -> bool: return _client_player().score > 0),
@@ -167,7 +150,6 @@ func _test_a_coin() -> void:
 		drift = maxf(drift, (game.get("coins")[i] as Vector2).distance_to(_server_game().coins[i]))
 	# Within the wire's precision: sixteen bits over the arena is about two hundredths.
 	check(drift < 0.05, "and the client moved the coin where the server did (%.3f)" % drift)
-
 	var status := _server.console.execute("tpl_status")
 	check(status.ok, "the game's console command answers")
 	done()

@@ -105,11 +105,9 @@ func player(id: int) -> Player:
 
 ## Where somebody at [param from] ends up after one tick of [param intent].
 ##
-## [b]Static and pure, and that is the whole of client prediction.[/b] The server runs this
-## for everybody; the owning client runs the same function on the same input for the same
-## delta, a few ticks ahead of the server, and they agree. Anything that differs between two
-## machines -- the wall clock, [code]randf()[/code], another player's position -- must never
-## reach this function, or every correction the server sends becomes a visible snap.
+## [b]Static and pure, and that is the whole of client prediction.[/b] The owning client runs
+## it on the same input as the server, a few ticks ahead, and they agree. Anything that differs
+## between machines -- the clock, [code]randf()[/code], another player -- must never reach it.
 static func step(from: Vector2, intent: Vector2, delta: float) -> Vector2:
 	var moved := from + intent.limit_length(1.0) * PLAYER_SPEED * delta
 	var edge := Vector2(PLAYER_RADIUS, PLAYER_RADIUS)

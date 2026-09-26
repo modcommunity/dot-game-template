@@ -1,9 +1,8 @@
 extends Node
 
-## What every suite here shares: sections, checks, and the two counters that keep a suite
-## honest. A script error inside a section aborts that section silently and the rest of the run
-## carries on, so a suite counts sections that ran to their last line AND the total number of
-## checks, and fails if either is short. Set [member checks] to the number your suite makes.
+## What every suite here shares. A script error aborts its section silently and the run goes
+## on, so a suite counts sections that finished AND the checks made, and fails if either is
+## short. Set [member checks] to the number your suite makes.
 
 var checks: int = 0
 

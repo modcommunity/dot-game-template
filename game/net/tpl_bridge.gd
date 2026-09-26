@@ -10,11 +10,9 @@ const TplRequest := preload("tpl_request.gd")
 ## The only file that names both the game and dot-net. Everything that crosses the wire starts
 ## or ends here, on both ends.
 ##
-## Four things travel, all through [TplLink]: SNAPSHOTS (dot-net's, unreliable: positions and
-## scores), INPUTS (the client's intent, every tick), EVENTS (TplEvent: hello, coins, spawn,
-## despawn) and REQUESTS (TplRequest: ready). On the server dot-game's module calls
-## [method add_player], [method remove_peer] and [method server_tick]; on a client the client
-## scene calls [method client_tick].
+## Four things travel through [TplLink]: SNAPSHOTS (dot-net's: positions and scores), INPUTS
+## (the client's intent, every tick), EVENTS (hello, coins, spawn, despawn) and REQUESTS (ready).
+## dot-game's module calls [method add_player], [method remove_peer] and [method server_tick].
 
 ## The acknowledgement dot-net puts in front of every input. Fixed width, so it goes first.
 const ACK_BYTES := 4
@@ -68,10 +66,8 @@ func attach(p_game: TplGame, p_net: DotNetManager) -> DotResult:
 		DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_SERVER)
 	if not event.ok or not request.ok:
 		return event if not event.ok else request
-
 	net.messages.on(TplEvent.NAME, _on_event)
 	net.messages.on(TplRequest.REQUEST, _on_request)
-
 	if net.is_server:
 		game.coin_moved.connect(_on_coin_moved)
 	return DotResult.success(self)
@@ -107,7 +103,6 @@ func add_player(peer_id: int, player_id: int, display_name: String) -> DotResult
 	var registered := net.registry.register(_spawn(who, peer_id), 0, _tick, net.config)
 	if not registered.ok:
 		return registered
-
 	for peer: int in _ready_peers:
 		_tell(peer, TplEvent.Kind.SPAWN, _spawn_body(player_id))
 
@@ -122,14 +117,12 @@ func remove_peer(peer_id: int) -> void:
 	# Off the list first: everything below tells everybody ELSE, and this peer has gone.
 	_ready_peers.erase(peer_id)
 	_player_of_peer.erase(peer_id)
-
 	if player_id != 0:
 		var body := DotNetWriter.new()
 		body.write_varint(_despawn(player_id))
 		game.remove_player(player_id)
 		for peer: int in _ready_peers:
 			_tell(peer, TplEvent.Kind.DESPAWN, body.to_bytes())
-
 	if net.peers().has(peer_id):
 		net.remove_peer(peer_id)
 
@@ -145,20 +138,17 @@ func server_tick(tick: int) -> void:
 func _admit(peer_id: int) -> void:
 	if not net.peers().has(peer_id):
 		net.add_peer(peer_id)
-
 	var hello := DotNetWriter.new()
 	hello.write_varint(int(_player_of_peer[peer_id]))
 	hello.write_uint(_tick, 32)
 	hello.write_uint(net.config.tick_rate, 8)
 	hello.write_uint(net.config.snapshot_rate, 8)
 	_tell(peer_id, TplEvent.Kind.HELLO, hello.to_bytes())
-
 	var coins := DotNetWriter.new()
 	coins.write_uint(game.coins.size(), 8)
 	for spot in game.coins:
 		_write_spot(coins, spot)
 	_tell(peer_id, TplEvent.Kind.COINS, coins.to_bytes())
-
 	for player_id: int in _nets:
 		_tell(peer_id, TplEvent.Kind.SPAWN, _spawn_body(player_id))
 
@@ -230,11 +220,9 @@ func client_tick(tick: int, intent: Vector2) -> void:
 	sent.read(DotNetReader.new(bytes.to_bytes()))
 	sent.sanitise(net.config.tick_rate)
 	net.local_inputs().push(sent)
-
 	var payload := net.encode_ack()
 	payload.append_array(bytes.to_bytes())
 	link.send_input(payload)
-
 	var me: TplGame.Player = game.player(local_id)
 	if me != null:
 		me.intent = sent.move
@@ -254,7 +242,6 @@ func receive_event(payload: PackedByteArray) -> void:
 func _on_event(message: DotNetMessage) -> void:
 	var event := message as TplEvent
 	var reader := DotNetReader.new(event.body)
-
 	match event.kind:
 		TplEvent.Kind.HELLO:
 			local_id = reader.read_varint()
@@ -306,7 +293,6 @@ func _spawn(who: TplGame.Player, owner_peer: int) -> DotNetIdentity:
 	root.name = "Player%d" % who.id
 	root.position = who.position
 	add_child(root)
-
 	var behaviour := TplPlayerNet.new()
 	behaviour.game = game
 	behaviour.player = who
@@ -322,7 +308,6 @@ func _spawn(who: TplGame.Player, owner_peer: int) -> DotNetIdentity:
 	# management here -- which is also the only anti-cheat that stops a wallhack.
 	identity.always_relevant = true
 	root.add_child(identity)
-
 	_nets[who.id] = behaviour
 	return identity
 

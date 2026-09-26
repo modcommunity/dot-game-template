@@ -35,12 +35,8 @@ static func rebase(path: String) -> String:
 static func rebase_onto(path: String, here: String) -> String:
 	if not path.begins_with("res://"):
 		return path
-
-	# Idempotent. The publisher rewrites every res:// string inside a .tscn or .tres onto the
-	# mount before it signs the pack, and does NOT rewrite the ones inside a .gd. So a delivered
-	# game holds both kinds, and a path that is already under the mount must be left alone --
-	# rebasing it twice gives res://dot_cloud/x/1/dot_cloud/x/1/..., which does not load.
+	# Idempotent: the publisher already moved every res:// inside a .tscn or .tres onto the
+	# mount (not inside a .gd), and a path moved twice does not load.
 	if path.begins_with(here):
 		return path
-
 	return here.path_join(path.substr(6))
