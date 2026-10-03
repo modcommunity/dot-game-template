@@ -106,9 +106,13 @@ func _physics_process(delta: float) -> void:
 
 	# The clock decides how many ticks this frame is worth, and which tick an input is for:
 	# a little AHEAD of the server, so it arrives before the server simulates that tick.
-	for _i in range(net.clock.advance(delta)):
+	#
+	# Each pass is its own tick: `advance` has already moved the clock by all of them, so
+	# `input_tick()` is the last one, and the passes before it count back from there.
+	var ticks := net.clock.advance(delta)
+	for i in range(ticks):
 		if net.clock.is_synced() and local_id != 0:
-			bridge.client_tick(net.clock.input_tick(), intent)
+			bridge.client_tick(net.clock.input_tick() - (ticks - 1 - i), intent)
 
 
 func _process(_delta: float) -> void:
