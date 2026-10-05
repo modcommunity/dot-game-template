@@ -24,3 +24,23 @@ client_scene: scenes/tpl_client.tscn
 module: game/tpl_module.gd
 
 max_players: 16
+
+# Content beyond this pack, each entry a published pack <owner>/<name>, optionally with
+# @<version>; the server's installer pins every entry to a concrete version and checks it
+# exists, so an unpublished one fails at startup rather than in front of players.
+#
+#   dependencies:          the server and every player mount it with the game
+#                          (shared art, sounds)
+#   server_dependencies:   only the server mounts it; players never download it
+#                          (bot data, rulesets)
+#   maps:                  the game's delivered maps, one pack per map, fetched when the
+#                          server changes to one; turn them into dot-map entries with
+#                          DotMapCatalogue.add_delivered(key, scene)
+#
+# dependencies:
+#   - you/shared-art
+# server_dependencies:
+#   - you/bot-routes
+# maps:
+#   - you/coin_field
+#   - you/coin_canyon
