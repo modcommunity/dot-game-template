@@ -6,7 +6,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## 1. What you get
 
-A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner.
+A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping.
 
 Small as it is, it is the whole shape of a platform game:
 
@@ -18,7 +18,7 @@ Small as it is, it is the whole shape of a platform game:
 | File | What it is |
 | --- | --- |
 | `game/tpl_game.gd` | The rules and the state. Read this first. |
-| `game/tpl_client.gd` | What a player runs: input, drawing, and the netcode on a client. |
+| `game/tpl_client.gd` | What a player runs: input, drawing, the netcode on a client, and the menu and scoreboard. |
 | `game/tpl_view.gd` | Draws the arena, the coins and the players. |
 | `game/tpl_server.gd` | The scene a dedicated server loads. |
 | `game/tpl_module.gd` | This game as a server module, over dot-game's `DotGameModule`. |
@@ -51,14 +51,14 @@ That renames every `tpl_` file and every `Tpl` name to your prefix (`game/cr_gam
 
 ## 3. Get the addons
 
-The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
+The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, and dot-menu with dot-ui and dot-settings for the menu and the scoreboard). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
 
 ```bash
 git clone https://github.com/modcommunity/dot-ci ../dot-ci
 ../dot-ci/scripts/resolve-deps.sh .
 ```
 
-That clones the four addons into `.deps/` (ignored) and links them into `addons/`. It clones only what is missing, so to update them, delete `.deps/` and run it again. To use another addon, add its line to `.gitignore` and run it again; keep the list to what you use.
+That clones the addons into `.deps/` (ignored) and links them into `addons/`. It clones only what is missing, so to update them, delete `.deps/` and run it again. To use another addon, add its line to `.gitignore` and run it again; keep the list to what you use.
 
 Working inside the whole family instead? [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap) clones every repository side by side and links every project's addons in one go (`./bootstrap.sh`), this one included.
 
@@ -113,6 +113,10 @@ Run the last line twice for two players. After changing your game, run `./server
 3. In the same file's `_on_event`, add a `TplEvent.Kind.PICKUP:` branch that reads the same fields, in the same order, with a `DotNetReader`.
 
 The rule for anything on the wire is **append only**: add kinds at the end of the enum, add fields at the end of a body, and read a field you added later only `if reader.has_more()`. Never reorder, retype or remove one — the number of a kind and the position of a field ARE the wire, and a reordered enum makes an older reader see a COIN as a SPAWN. Something that cannot be an append is a new message type with a new name. A server and its players always mount the same version of your pack, so this mostly protects you from yourself; it is also what lets two builds of the platform underneath you meet on one socket. And never add an `@rpc` to `tpl_link.gd`: both ends must declare exactly the same set, or every call between them fails.
+
+**A column on the scoreboard** (deaths, a team, a level): return it from `_game_board_fields(session)` in `game/tpl_module.gd`, which already adds `coins`, and add a column with the same key in `_build_menu` in `game/tpl_client.gd`. The server sends every player's name, ping and time on the server by itself; your module adds what only your game knows. Teams, a header line, or a board that looks nothing like this one are all options on dot-menu's `DotMenuScoreboard`.
+
+**A setting** (a colour-blind palette, a camera zoom): add it to the schema in `_build_menu` with `DotSettingsDef`, apply it from `settings.applier.on(&"your_key", func(value, _why): ...)`, and add a row for it to a page (`settings.menu.page(&"general").section("Display").add(DotMenuRow.toggle(&"your_key", "Your words"))`). The menu writes the setting and the applier applies it, at start and whenever it changes.
 
 **Something new about each player** (a colour choice, a health bar): declare it in `_register_net_vars` in `game/net/tpl_player_net.gd` and copy it in the three methods below it. dot-net sends only what changed.
 

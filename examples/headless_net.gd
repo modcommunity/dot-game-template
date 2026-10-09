@@ -22,7 +22,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 14
+	checks = 15
 	_run.call_deferred()
 
 
@@ -152,6 +152,16 @@ func _test_a_coin() -> void:
 	check(drift < 0.05, "and the client moved the coin where the server did (%.3f)" % drift)
 	var status := _server.console.execute("tpl_status")
 	check(status.ok, "the game's console command answers")
+
+	# The Tab board, held on the real client: the server's roster over the socket, with the
+	# coins the module adds and this player picked out.
+	var menu: DotMenu = (_client.get("settings") as DotMenuSettings).menu
+	menu.scoreboard.open()
+	var arrived := await _until(func() -> bool:
+		return menu.scoreboard.rows().any(func(r: Dictionary) -> bool:
+			return bool(r.get("you", false)) and int(r.get("coins", 0)) > 0 and int(r.get("seconds", -1)) >= 0))
+	check(arrived, "Tab shows the server's board: this player, their coins and their time (%s)" % str(menu.scoreboard.rows()))
+	menu.scoreboard.close()
 	done()
 
 

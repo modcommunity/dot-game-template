@@ -50,6 +50,13 @@ func _game_load() -> DotResult:
 	return DotResult.success(null)
 
 
+## This game's column on the Tab board. dot-server already sends every player's name, ping
+## and time connected; this adds the one thing only the game knows, per player.
+func _game_board_fields(session: Object) -> Dictionary:
+	var who: TplGame.Player = (game as TplGame).player(int(session.get("userid"))) if game != null else null
+	return {"coins": who.score} if who != null else {}
+
+
 func _cmd_status(ctx: DotCmdContext) -> void:
 	ctx.reply_lines((game as TplGame).describe_lines())
 	ctx.reply_lines((bridge as TplBridge).describe_lines())
