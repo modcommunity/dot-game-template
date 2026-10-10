@@ -36,6 +36,9 @@ var _hud: Label = null
 
 ## The Escape menu and the settings behind it. See [method _build_menu].
 var settings: DotMenuSettings = null
+
+## The player's console. See [method DotConsoleKit.build].
+var console: DotConsoleController = null
 var _touching: bool = false
 var _touch_at: Vector2 = Vector2.ZERO
 
@@ -87,6 +90,11 @@ func _build_menu(offline: bool) -> void:
 	add_child(settings)
 	if not settings.setup().ok or settings.menu == null:
 		return
+
+	# The console (the key under Escape): net_stat and every other setting by name, and
+	# the server's console when one runs in this process. One of the menu's overlays, so
+	# opening it stops the player and frees the pointer exactly as the menu does.
+	console = DotConsoleKit.build(self, settings.settings, settings.menu)
 
 	var board := settings.menu.scoreboard
 	board.title_text = "Coin Grab"

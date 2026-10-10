@@ -6,7 +6,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## 1. What you get
 
-A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping.
+A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping. The key under Esc opens the console, where every setting is a command of its own name — `net_stat 2` draws what the connection is doing.
 
 Small as it is, it is the whole shape of a platform game:
 
@@ -51,7 +51,7 @@ That renames every `tpl_` file and every `Tpl` name to your prefix (`game/cr_gam
 
 ## 3. Get the addons
 
-The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, and dot-menu with dot-ui and dot-settings for the menu and the scoreboard). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
+The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, and dot-console for the console). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
 
 ```bash
 git clone https://github.com/modcommunity/dot-ci ../dot-ci
@@ -116,7 +116,7 @@ The rule for anything on the wire is **append only**: add kinds at the end of th
 
 **A column on the scoreboard** (deaths, a team, a level): return it from `_game_board_fields(session)` in `game/tpl_module.gd`, which already adds `coins`, and add a column with the same key in `_build_menu` in `game/tpl_client.gd`. The server sends every player's name, ping and time on the server by itself; your module adds what only your game knows. Teams, a header line, or a board that looks nothing like this one are all options on dot-menu's `DotMenuScoreboard`.
 
-**A setting** (a colour-blind palette, a camera zoom): add it to the schema in `_build_menu` with `DotSettingsDef`, apply it from `settings.applier.on(&"your_key", func(value, _why): ...)`, and add a row for it to a page (`settings.menu.page(&"general").section("Display").add(DotMenuRow.toggle(&"your_key", "Your words"))`). The menu writes the setting and the applier applies it, at start and whenever it changes.
+**A setting** (a colour-blind palette, a camera zoom): add it to the schema in `_build_menu` with `DotSettingsDef`, apply it from `settings.applier.on(&"your_key", func(value, _why): ...)`, and add a row for it to a page (`settings.menu.page(&"general").section("Display").add(DotMenuRow.toggle(&"your_key", "Your words"))`). The menu writes the setting and the applier applies it, at start and whenever it changes. It is a console command too, with nothing to add: the console binds every setting in the schema by name.
 
 **Something new about each player** (a colour choice, a health bar): declare it in `_register_net_vars` in `game/net/tpl_player_net.gd` and copy it in the three methods below it. dot-net sends only what changed.
 
