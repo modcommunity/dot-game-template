@@ -11,9 +11,12 @@ extends "suite.gd"
 ## res:// -- which is dot-server-deploy's examples/template_client.tscn.
 
 const PORT := 28911
+const CLIENT_PEER := 7
 const SERVER_DIR := "user://tpl_headless_net"
 const MODULE := "res://game/tpl_module.gd"
 const CLIENT_SCENE := "res://scenes/tpl_client.tscn"
+const TplBridge := preload("res://game/net/tpl_bridge.gd")
+const TplGame := preload("res://game/tpl_game.gd")
 
 var _server: DotServer = null
 var _link: DotClientLink = null
@@ -22,7 +25,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 15
+	checks = 17
 	_run.call_deferred()
 
 
@@ -33,6 +36,7 @@ func _run() -> void:
 		await _test_moving()
 		await _test_a_coin()
 		await _test_leaving()
+	await _test_a_lost_input()
 	if _link != null:
 		_link.disconnect_from_server("done")
 	if _server != null:
@@ -172,6 +176,84 @@ func _test_leaving() -> void:
 	check(gone, "the server takes the player out of the game")
 	_link = null
 	done()
+
+
+## Inputs go unreliable, so every packet carries the last few commands
+## (TplBridge.INPUT_COPIES). A socket on localhost never loses one, so this section puts a
+## second bridge pair side by side with no socket at all, carries the client's packets to the
+## server by hand, and drops one. That tick's command must still reach the server, from the
+## copies in the next packet. Then the copies of ticks the server has already simulated must be
+## skipped rather than pushed, which would count every one of them as a late input.
+func _test_a_lost_input() -> void:
+	section("a lost input packet is made up by the next one")
+	var server_bridge := _bridge_pair_half(true)
+	var client_bridge := _bridge_pair_half(false)
+	var sent: Array = (client_bridge.link as RecordingLink).sent
+	server_bridge.add_player(CLIENT_PEER, 1, "Ada")
+	server_bridge.net.add_peer(CLIENT_PEER)
+	var buffer: DotNetInput.Buffer = server_bridge.net.input_buffer_for(CLIENT_PEER)
+	var lost_tick := 10
+	var held: DotNetInput = null
+
+	# The client runs two ticks ahead of the server, as its clock does.
+	for tick in range(1, 40):
+		server_bridge.server_tick(tick)
+		var input := tick + 2
+		client_bridge.client_tick(input, Vector2.UP if input == lost_tick else Vector2.RIGHT)
+		var payload: PackedByteArray = sent.pop_back()
+		if input != lost_tick:
+			server_bridge.receive_input(CLIENT_PEER, payload)
+		if input == lost_tick + 1:
+			held = buffer.peek(lost_tick)
+		if input == lost_tick + 5:
+			check(buffer.late_count == 0 and buffer.duplicate_count > 0,
+				"copies of ticks already buffered are duplicates, not late (%d duplicates)" % buffer.duplicate_count)
+
+	# Within the wire's precision: eight bits an axis, and zero is not on that grid.
+	var recovered := held != null and (held.get("move") as Vector2).distance_to(Vector2.UP) < 0.01
+	check(recovered and buffer.late_count == 0,
+		"the lost tick's command arrives in the next packet, and the copies add no late input (%d late)" % buffer.late_count)
+	for bridge: TplBridge in [server_bridge, client_bridge]:
+		bridge.link.free()
+		bridge.get_parent().queue_free()
+	done()
+
+
+## A link that keeps what it would send instead of sending it.
+class RecordingLink extends "res://game/net/tpl_link.gd":
+	var sent: Array = []
+
+	func send_input(payload: PackedByteArray) -> void:
+		sent.append(payload)
+
+
+## One end of a socketless pair: a game, a manager scoped apart from the dedicated server's,
+## and a bridge whose link records instead of sending.
+func _bridge_pair_half(is_server: bool) -> TplBridge:
+	var side := Node.new()
+	side.name = "LostInputServer" if is_server else "LostInputClient"
+	add_child(side)
+	var game := TplGame.new()
+	game.authoritative = is_server
+	side.add_child(game)
+	var net := DotNetManager.new()
+	net.is_server = is_server
+	net.local_peer_id = 1 if is_server else CLIENT_PEER
+	net.auto_tick = false
+	net.config_file = ""
+	net.service_scope = side.name
+	net.config = TplBridge.net_config(60)
+	side.add_child(net)
+	var _setup := net.setup()
+	var bridge := TplBridge.new()
+	side.add_child(bridge)
+	var _attached := bridge.attach(game, net)
+	net.messages.seal()
+	# Out of the tree on purpose: a link outside the tree sends nothing, so the snapshots and
+	# events this pair would send go nowhere, and only the inputs are recorded.
+	bridge.link = RecordingLink.new()
+	var _started := net.start()
+	return bridge
 
 
 # --- Helpers -----------------------------------------------------------------

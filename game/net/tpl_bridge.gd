@@ -11,11 +11,22 @@ const TplRequest := preload("tpl_request.gd")
 ## or ends here, on both ends.
 ##
 ## Four things travel through [TplLink]: SNAPSHOTS (dot-net's: positions and scores), INPUTS
-## (the client's intent, every tick), EVENTS (hello, coins, spawn, despawn) and REQUESTS (ready).
+## (the client's last few intents, every tick), EVENTS (hello, coins, spawn, despawn) and REQUESTS (ready).
 ## dot-game's module calls [method add_player], [method remove_peer] and [method server_tick].
 
 ## The acknowledgement dot-net puts in front of every input. Fixed width, so it goes first.
 const ACK_BYTES := 4
+
+## Commands in every input packet: this tick's and the four before it.
+##
+## Inputs go unreliable, because a command that arrives after its tick is useless and waiting
+## for a resend would hold up every one behind it. So packets are lost, and with one command a
+## packet every lost one is a tick the server runs on the previous command while this client
+## predicted the real one: a correction on screen. Repeating the last few costs a few bytes
+## (the copies' ticks are one-byte steps) and the server misses a command only when five
+## packets in a row are lost. The family measured 80% of ticks on the right command at 20%
+## loss with one copy, and 99-100% with three to five.
+const INPUT_COPIES := 5
 
 ## Client side: the server said which player this client is.
 signal hello_received(player_id: int)
@@ -179,11 +190,26 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> void:
 	if payload.size() <= ACK_BYTES or not net.peers().has(peer_id):
 		return
 	net.receive_ack_payload(peer_id, payload.slice(0, ACK_BYTES))
-	var command := TplCommand.new()
-	command.read(DotNetReader.new(payload.slice(ACK_BYTES)))
-	# Buffered for its tick. dot-net sanitises it on the way out, on the one path every input
-	# takes, rather than here where a second caller could forget.
-	net.input_buffer_for(peer_id).push(command)
+	# This tick's command and the copies before it (see INPUT_COPIES), oldest first.
+	var commands := DotNetInput.read_batch(
+		DotNetReader.new(payload.slice(ACK_BYTES)),
+		func() -> DotNetInput: return TplCommand.new()
+	)
+	if commands.is_empty():
+		return
+	# Each is buffered for its tick. dot-net sanitises it on the way out, on the one path every
+	# input takes, rather than here where a second caller could forget.
+	#
+	# A copy of a tick the server has already simulated is skipped, not pushed: the buffer
+	# would count it as LATE, and the late count is how an operator spots a client whose clock
+	# runs behind, so five copies a packet would bury the real ones. The newest is always
+	# pushed, so a command that really is late is still counted.
+	var buffer := net.input_buffer_for(peer_id)
+	var newest := commands[commands.size() - 1]
+	for command in commands:
+		if command != newest and command.tick <= buffer.last_consumed_tick():
+			continue
+		buffer.push(command)
 
 
 func receive_request(peer_id: int, payload: PackedByteArray) -> void:
@@ -211,17 +237,27 @@ func client_tick(tick: int, intent: Vector2) -> void:
 	command.tick = tick
 	command.delta = net.clock.tick_duration()
 	command.move = intent
+
+	# Decoded again before it is kept or predicted with: the server simulates the quantised
+	# value, so the client must too, or every tick is a small disagreement the server has to
+	# correct. It is kept as decoded, NOT sanitised, because what is kept is resent as a copy in
+	# the next few packets: a decoded value encodes back to exactly the same bits, a sanitised
+	# one need not. TplGame.step bounds the length itself, so this and the server's sanitised
+	# value move a player the same distance.
 	var bytes := DotNetWriter.new()
 	command.write(bytes)
-
-	# Decoded again before predicting: the server simulates the quantised value, so the client
-	# must too, or every tick is a small disagreement the server has to correct.
 	var sent := TplCommand.new()
 	sent.read(DotNetReader.new(bytes.to_bytes()))
-	sent.sanitise(net.config.tick_rate)
 	net.local_inputs().push(sent)
+
+	# The commands before this one come from the replay history dot-net already keeps for
+	# reconciliation; this one goes last whatever the history did with it.
+	var copies: Array = Array(net.local_inputs().recent(INPUT_COPIES - 1, tick - 1))
+	copies.append(sent)
+	var batch := DotNetWriter.new()
+	DotNetInput.write_batch(batch, copies)
 	var payload := net.encode_ack()
-	payload.append_array(bytes.to_bytes())
+	payload.append_array(batch.to_bytes())
 	link.send_input(payload)
 	var me: TplGame.Player = game.player(local_id)
 	if me != null:

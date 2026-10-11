@@ -136,7 +136,7 @@ tools/check.sh           # import, parse every script, run every suite, test the
 tools/check.sh --quick   # without the rename test
 ```
 
-`examples/headless_pack.tscn` is the suite that refuses a `class_name` or a bare path, and it plants one of each first to prove it can still see them. `headless_rules` runs the rules with no window; `headless_net` boots a real dedicated server, loads the module by path the way a deployed server does, connects a real client over a real socket, steers it, and checks that the move and a collected coin's score reach the client. CI runs the parse pass and every `examples/headless_*` suite on each push (`.github/workflows/ci.yml`).
+`examples/headless_pack.tscn` is the suite that refuses a `class_name` or a bare path, and it plants one of each first to prove it can still see them. `headless_rules` runs the rules with no window; `headless_net` boots a real dedicated server, loads the module by path the way a deployed server does, connects a real client over a real socket, steers it, checks that the move and a collected coin's score reach the client, and that an input packet lost on the way is made up by the copies in the next one. CI runs the parse pass and every `examples/headless_*` suite on each push (`.github/workflows/ci.yml`).
 
 ## 8. Publish it
 
