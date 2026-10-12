@@ -33,6 +33,7 @@ var net: DotNetManager = null
 var local_id: int = 0
 
 var _hud: Label = null
+var _hud_root: Control = null
 
 ## The Escape menu and the settings behind it. See [method _build_menu].
 var settings: DotMenuSettings = null
@@ -55,10 +56,17 @@ func _ready() -> void:
 	add_child(view)
 	var layer := CanvasLayer.new()
 	add_child(layer)
+	# The HUD's root: a full-rect Control under the layer, so the menu can theme and scale
+	# everything on it at once (see [method _build_menu]).
+	_hud_root = Control.new()
+	_hud_root.name = "Hud"
+	_hud_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_hud_root)
 	_hud = Label.new()
 	_hud.position = Vector2(16.0, 12.0)
 	_hud.add_theme_font_size_override("font_size", 20)
-	layer.add_child(_hud)
+	_hud_root.add_child(_hud)
 	_build_menu(offline)
 	if offline:
 		game.start()
@@ -95,6 +103,13 @@ func _build_menu(offline: bool) -> void:
 	# the server's console when one runs in this process. One of the menu's overlays, so
 	# opening it stops the player and frees the pointer exactly as the menu does.
 	console = DotConsoleKit.build(self, settings.settings, settings.menu)
+	# The HUD in the theme the player picks in the menu, and at their HUD size, live: the menu
+	# sets the theme on the root (every Label under it takes the theme's text colour,
+	# outlined) and scales it. Pass a Theme as the second argument for your game's accent
+	# (dot-ui's DotHudPiece colours `highlight` and `plate_edge`). By name, because a game
+	# delivered to an older client shell finds a dot-menu without it.
+	if settings.menu.has_method(&"follow_hud"):
+		settings.menu.call(&"follow_hud", _hud_root, null)
 
 	var board := settings.menu.scoreboard
 	board.title_text = "Coin Grab"

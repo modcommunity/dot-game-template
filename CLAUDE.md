@@ -47,6 +47,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - Nothing is sent to a client before its READY. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - Read keys with `Input.is_physical_key_pressed`: `project.godot`'s input map does not travel in a pack. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - RPC methods are named `_rpc_*`, never a Node virtual. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
+- The HUD is a full-rect root Control the menu themes and scales (`settings.menu.follow_hud(root, accent)`, by name); put everything the HUD draws under it, and give your accent as a Theme rather than colouring Labels by hand.
 - Commit before trusting dot-server-deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
 - `tools/rename.sh` leaves Markdown alone and refuses a repository name the site cannot use as a pack id; `tools/check.sh` must keep the survivor check. [design](docs/design.md#the-rename)
 - Add an addon only by adding its `/addons/<name>` line to `.gitignore` and using it; a pack is checked against the addons it names.
