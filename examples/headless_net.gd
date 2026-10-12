@@ -16,7 +16,9 @@ const SERVER_DIR := "user://tpl_headless_net"
 const MODULE := "res://game/tpl_module.gd"
 const CLIENT_SCENE := "res://scenes/tpl_client.tscn"
 const TplBridge := preload("res://game/net/tpl_bridge.gd")
+const TplEvent := preload("res://game/net/tpl_event.gd")
 const TplGame := preload("res://game/tpl_game.gd")
+const TplRequest := preload("res://game/net/tpl_request.gd")
 
 var _server: DotServer = null
 var _link: DotClientLink = null
@@ -25,13 +27,14 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 17
+	checks = 19
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("dot-game-template: a server and a client over a socket")
 	DotPaths.remove_tree(SERVER_DIR)
+	_test_kinds_fit()
 	if await _boot() and await _test_join():
 		await _test_moving()
 		await _test_a_coin()
@@ -44,6 +47,16 @@ func _run() -> void:
 	await get_tree().process_frame
 	DotPaths.remove_tree(SERVER_DIR)
 	finish()
+
+
+## A kind goes out in a fixed field the writer masks without a word, so one past it aliases
+## a smaller kind and nothing errors. A game made from this one grows [enum TplEvent.Kind]
+## first; the check is here so the kind that outgrows four bits fails a suite.
+func _test_kinds_fit() -> void:
+	section("every kind fits its field")
+	check(TplEvent.fits(), "every event kind fits the kind field (%d kinds in %d bits)" % [TplEvent.Kind.size(), TplEvent.KIND_BITS])
+	check(TplRequest.asks_fit(), "every request kind fits it too (%d in %d bits)" % [TplRequest.Ask.size(), TplRequest.KIND_BITS])
+	done()
 
 
 func _boot() -> bool:

@@ -13,6 +13,12 @@ const REQUEST := &"tpl.request"
 enum Ask { READY }
 
 
+
+## Whether every [enum Ask] fits in the [constant KIND_BITS] this shares with [TplEvent].
+static func asks_fit() -> bool:
+	return int(Ask.values().max()) < (1 << KIND_BITS)
+
+
 func _type_name() -> StringName:
 	return REQUEST
 

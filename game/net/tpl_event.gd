@@ -39,6 +39,13 @@ func _read(reader: DotNetReader) -> void:
 	body = reader.read_bytes(MAX_BODY)
 
 
+## Whether every [enum Kind] fits in [constant KIND_BITS]. The writer masks a value to its
+## field without a word, so a kind past it would go out as a smaller one: HELLO, most likely.
+## headless_net reads this, so the kind that outgrows the field fails a suite.
+static func fits() -> bool:
+	return int(Kind.values().max()) < (1 << KIND_BITS)
+
+
 func _validate() -> DotResult:
 	if kind < 0 or kind >= Kind.size():
 		return DotResult.fail(DotError.CODE_INVALID, "Unknown event kind %d." % kind)
