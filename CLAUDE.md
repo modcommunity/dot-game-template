@@ -50,6 +50,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - Commit before trusting dot-server-deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
 - `tools/rename.sh` leaves Markdown alone and refuses a repository name the site cannot use as a pack id; `tools/check.sh` must keep the survivor check. [design](docs/design.md#the-rename)
 - Add an addon only by adding its `/addons/<name>` line to `.gitignore` and using it; a pack is checked against the addons it names.
+- `project.godot` carries no comments: the editor drops them, and any key left at its default, the first time it saves the file, so the reasons live here. The renderer is `gl_compatibility` because the client shell a published game is mounted into is, a browser being one of its targets. Nothing in that file travels in a pack (not the renderer, the input map or the gravity), so anything the game depends on at runtime is set from code. `[importer_defaults]` keeps new textures at `detect_3d/compress_to=0`, so the editor never re-imports one VRAM-compressed on a first open and leaves the checkout dirty.
 
 ## Not here yet
 

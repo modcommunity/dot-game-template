@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="dot-game-template"
-config/features=PackedStringArray("4.7")
 run/main_scene="res://scenes/tpl_client.tscn"
+config/features=PackedStringArray("4.7")
 config/icon="res://icon.svg"
 
 [display]
@@ -21,11 +21,13 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
+[importer_defaults]
+
+texture={
+"detect_3d/compress_to": 0
+}
+
 [rendering]
 
-; The renderer the delivered client actually runs. A published game is mounted into the
-; client shell, and the shell is gl_compatibility because a browser is one of its targets.
-; NOTHING in this file travels in a pack -- not this, not the input map, not the gravity --
-; so anything the game depends on at runtime is set from code instead.
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
