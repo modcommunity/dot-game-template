@@ -15,7 +15,19 @@
 - **`net.service_scope = &"client"`**, so a server and a client in one process (every suite) do not replace each other's registry entry.
 - **Keys are read with `Input.is_physical_key_pressed`, not actions.** `project.godot` does not travel in a pack, so an input map defined there does not exist in the shell that mounts the game.
 - **The RPCs are `_rpc_*`, and that is not style.** The first version called one `_input`, which is Node's virtual: "The function signature doesn't match the parent", and every script preloading the link failed to compile.
-- **Settings and the console are dot-menu's `DotMenuSettings` and dot-console's `DotConsoleKit`**, the same as every game, so a developer starts with the Escape menu, the Tab board and `net_stat` the players already know.
+- **Settings and the console are dot-menu's `DotMenuSettings` and dot-console's `DotConsoleKit`**, the same as every game, so a developer starts with the Escape menu, the Tab board and `net_stat` the players already know. Chat is dot-ui's `DotChatWindow` over dot-server's chat ([below](#chat-and-why-it-is-in)).
+
+## Chat, and why it is in
+
+The template first shipped without chat, to keep the netcode the only new idea a developer meets. That was reversed on 2026-10-12: a game copied from it never showed the server's own lines (a vote announcing itself, "Ada joined", an admin's `say`, the reply to a `!` command) and had no `!sm`, and self-mute (`sm`) is to work in every game. The cost turned out to be one function in `tpl_client.gd`, because the game routes no chat itself:
+
+- **dot-ui's `DotChatWindow` under the HUD root**, so the menu's theme and HUD size reach it. Y opens it (dot-ui registers the action at runtime, which is why it works in a pack where `project.godot`'s input map does not travel). No team key: the template has no teams.
+- **Sent with `DotClientLink.send_chat`, drawn from `chat_received`.** dot-server's chat manager checks every line (rate, length, a gag), sends it to every playing session, the sender included, and runs a line starting with `!` or `/` as a console command with the speaker's permissions instead, which is how `!rtv`, `!vote` and the map menu's `/mapmenu` work. Drawing what comes back rather than what was typed means the box shows what the server accepted. `system` and `admin` lines are drawn by dot-game's `DotGameChatClient.draw_server_line`, the same as every game; `all`/`team` are drawn with the speaker in their disc's colour (a player id is the session's userid).
+- **`sm` is dot-chat's `DotChatSelfMute`**, one list per process: the box runs `!sm`/`/sm` before `submitted` so it never reaches the server, the console's `sm` (from `DotConsoleKit`, present because dot-chat is linked) is the same list, and `_on_chat_line` drops a muted player's line by userid and name. `DotChatSelfMute.shared()` is called when the box is built, because the list is what asks the server for the roster.
+- **Typing does not steer**: `_intent` returns zero while the box is open, before the steer hook, so a suite can prove it.
+- **Offline, a line is echoed as "You"**: there is nobody to send it to, and a box that did nothing would read as broken.
+
+A game that wants channels of its own (teams, proximity) or voice routes chat through dot-game's `DotGameServices` instead, with `send_chat`/`send_voice` on its bridge; mg-buses-from-hell's `bfh_services.gd` is the short example.
 
 ## The pack rules, enforced in three places
 

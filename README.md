@@ -6,7 +6,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## 1. What you get
 
-A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping. The key under Esc opens the console, where every setting is a command of its own name — `net_stat 2` draws what the connection is doing.
+A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping. **Y** opens chat, which also shows what the server says (a vote, somebody joining, an admin). The key under Esc opens the console, where every setting is a command of its own name — `net_stat 2` draws what the connection is doing. `sm` in the console, or `!sm` in chat, is your own mute list: `sm` lists who is here, `sm 2` mutes the second of them for you alone, and nobody is told.
 
 Small as it is, it is the whole shape of a platform game:
 
@@ -18,7 +18,7 @@ Small as it is, it is the whole shape of a platform game:
 | File | What it is |
 | --- | --- |
 | `game/tpl_game.gd` | The rules and the state. Read this first. |
-| `game/tpl_client.gd` | What a player runs: input, drawing, the netcode on a client, and the menu and scoreboard. |
+| `game/tpl_client.gd` | What a player runs: input, drawing, the netcode on a client, the menu and scoreboard, and chat. |
 | `game/tpl_view.gd` | Draws the arena, the coins and the players. |
 | `game/tpl_server.gd` | The scene a dedicated server loads. |
 | `game/tpl_module.gd` | This game as a server module, over dot-game's `DotGameModule`. |
@@ -51,7 +51,7 @@ That renames every `tpl_` file and every `Tpl` name to your prefix (`game/cr_gam
 
 ## 3. Get the addons
 
-The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, and dot-console for the console). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
+The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, dot-console for the console, and dot-chat for the self-mute list behind dot-ui's chat box). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
 
 ```bash
 git clone https://github.com/modcommunity/dot-ci ../dot-ci
@@ -118,6 +118,8 @@ The rule for anything on the wire is **append only**: add kinds at the end of th
 
 **A setting** (a colour-blind palette, a camera zoom): add it to the schema in `_build_menu` with `DotSettingsDef`, apply it from `settings.applier.on(&"your_key", func(value, _why): ...)`, and add a row for it to a page (`settings.menu.page(&"general").section("Display").add(DotMenuRow.toggle(&"your_key", "Your words"))`). The menu writes the setting and the applier applies it, at start and whenever it changes. It is a console command too, with nothing to add: the console binds every setting in the schema by name.
 
+**Chat with channels of your own** (team chat, a radius): the chat box sends through the server's own chat (`link.send_chat` in `_build_chat`, `game/tpl_client.gd`), which every player hears. For channels, route chat through your game instead with dot-game's `DotGameServices`; the family's bus game (`mg-buses-from-hell`, `bfh_services.gd`) is the short example. A line starting with `!` or `/` is a server command, so `!rtv` already works.
+
 **Something new about each player** (a colour choice, a health bar): declare it in `_register_net_vars` in `game/net/tpl_player_net.gd` and copy it in the three methods below it. dot-net sends only what changed.
 
 Then run the checks (section 7) and play it (sections 4 and 5).
@@ -136,7 +138,7 @@ tools/check.sh           # import, parse every script, run every suite, test the
 tools/check.sh --quick   # without the rename test
 ```
 
-`examples/headless_pack.tscn` is the suite that refuses a `class_name` or a bare path, and it plants one of each first to prove it can still see them. `headless_rules` runs the rules with no window; `headless_net` boots a real dedicated server, loads the module by path the way a deployed server does, connects a real client over a real socket, steers it, checks that the move and a collected coin's score reach the client, and that an input packet lost on the way is made up by the copies in the next one. CI runs the parse pass and every `examples/headless_*` suite on each push (`.github/workflows/ci.yml`).
+`examples/headless_pack.tscn` is the suite that refuses a `class_name` or a bare path, and it plants one of each first to prove it can still see them. `headless_rules` runs the rules with no window; `headless_net` boots a real dedicated server, loads the module by path the way a deployed server does, connects a real client over a real socket, steers it, checks that the move and a collected coin's score reach the client, that a chat line makes the round trip and `!sm` never leaves the client, and that an input packet lost on the way is made up by the copies in the next one. CI runs the parse pass and every `examples/headless_*` suite on each push (`.github/workflows/ci.yml`).
 
 ## 8. Publish it
 

@@ -16,6 +16,9 @@ const TplView := preload("tpl_view.gd")
 ## [b]Escape is the menu and Tab, held, is the scoreboard[/b], both dot-menu's: the stock
 ## window and frame-rate settings and six themes, and a board of every player's coins, time
 ## on the server and ping. See [method _build_menu].
+##
+## [b]Y is chat[/b], dot-ui's chat box: what players say, and what the server says (a vote, an
+## admin's `say`, the reply to a command). See [method _build_chat].
 
 ## The shell's link, when the shell sets it; otherwise found in the registry.
 var link: DotClientLink = null
@@ -40,6 +43,9 @@ var settings: DotMenuSettings = null
 
 ## The player's console. See [method DotConsoleKit.build].
 var console: DotConsoleController = null
+
+## The chat box. See [method _build_chat].
+var chat: DotChatWindow = null
 var _touching: bool = false
 var _touch_at: Vector2 = Vector2.ZERO
 
@@ -68,6 +74,7 @@ func _ready() -> void:
 	_hud.add_theme_font_size_override("font_size", 20)
 	_hud_root.add_child(_hud)
 	_build_menu(offline)
+	_build_chat(offline)
 	if offline:
 		game.start()
 		local_id = 1
@@ -129,6 +136,63 @@ func _build_menu(offline: bool) -> void:
 			for who: TplGame.Player in game.players.values():
 				rows.append({"id": who.id, "name": who.name, "coins": who.score, "you": who.id == local_id})
 			return {"server": {"name": "Coin Grab", "game": "offline"}, "players": rows}
+
+
+## The chat box: Y opens it, Enter sends, Escape closes.
+##
+## [b]This game routes no chat of its own, and does not need to.[/b] What a player types goes
+## to dot-server's chat manager through the shell's link ([method DotClientLink.send_chat]),
+## which checks it (rate, length, a gag), sends it to everybody, and runs a line starting
+## with `!` or `/` as a command instead: `!rtv`, `!vote 2`, the map menu's `/mapmenu`. Every
+## line comes back on [signal DotClientLink.chat_received], the sender's own included, so
+## what you see is what the server accepted. A game whose chat needs channels of its own
+## (teams, a radius) routes it through dot-game's `DotGameServices` instead.
+##
+## [b]`!sm` and `/sm` never leave this machine.[/b] They are the player's own block list
+## (dot-chat's `DotChatSelfMute`), which the box runs before anything is sent, so the muted
+## player is never told; the console's `sm` is the same list. Lines from a muted player are
+## dropped in [method _on_chat_line].
+func _build_chat(offline: bool) -> void:
+	chat = DotChatWindow.new()
+	chat.name = "Chat"
+	# No teams here, so no team-chat key (dot-ui's default is U).
+	chat.team_action = &""
+	chat.channels = [{"id": &"all", "label": "Say", "colour": Color(0.88, 0.90, 0.94)}]
+	# Under the HUD's root, so the menu's theme and HUD size reach it too.
+	_hud_root.add_child(chat)
+	chat.submitted.connect(_on_chat_submitted)
+	# The block list, made now rather than at the first `!sm`: it is what asks the server who
+	# is here, so it knows whose lines to drop before the first one arrives.
+	var _mutes := DotChatSelfMute.shared()
+	if not offline and link != null:
+		link.chat_received.connect(_on_chat_line)
+
+
+## The player pressed Enter on a line. Offline there is nobody to send it to, so it is shown.
+func _on_chat_submitted(text: String, _channel: StringName) -> void:
+	if net == null:
+		chat.add_said("You", text, TplGame.colour_of(local_id))
+		return
+	link.send_chat(text)
+
+
+## One line from the server: `{kind, name, text}`, and `userid` on what a player said.
+func _on_chat_line(payload: Dictionary) -> void:
+	# The server's own lines (`system`: votes, joins, `say`; `admin`), drawn as every game in
+	# the family draws them.
+	if DotGameChatClient.draw_server_line(chat, payload):
+		return
+	var kind := str(payload.get("kind", ""))
+	# `state` is not a line: it says whether something else carries this conversation.
+	if kind != "all" and kind != "team":
+		return
+	var speaker := str(payload.get("name", ""))
+	var userid := int(payload.get("userid", 0))
+	# Matched by the userid as well as the name, so a renamed player stays muted.
+	if DotChatSelfMute.shared().is_muted(speaker, str(userid)):
+		return
+	# The speaker in their disc's colour: a player id here is their userid.
+	chat.add_said(speaker, str(payload.get("text", "")), TplGame.colour_of(userid))
 
 
 ## Builds this end's netcode and tells the server we are here.
@@ -196,12 +260,16 @@ func _process(_delta: float) -> void:
 	for who: TplGame.Player in game.players.values():
 		lines.append("%s%s  %d" % ["> " if who.id == local_id else "  ", who.name, who.score])
 	if net == null:
-		lines.append("\nWASD, arrows or touch to move. Tab: scores. Esc: menu")
+		lines.append("\nWASD, arrows or touch to move. Tab: scores. Y: chat. Esc: menu")
 	_hud.text = "\n".join(lines) if not lines.is_empty() else "Joining..."
 
 
 ## Where the player wants to go, length 0..1: keys, or a finger (or a held mouse button).
 func _intent() -> Vector2:
+	# Typing is not steering. Keys are polled, and a focused chat line does not stop that:
+	# without this, typing "sad" walks the player down and left.
+	if chat != null and chat.is_open():
+		return Vector2.ZERO
 	if steer.is_valid():
 		return steer.call()
 	var keys := Vector2(_held(KEY_D, KEY_RIGHT) - _held(KEY_A, KEY_LEFT), _held(KEY_S, KEY_DOWN) - _held(KEY_W, KEY_UP))

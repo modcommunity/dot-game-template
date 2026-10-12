@@ -27,7 +27,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 19
+	checks = 27
 	_run.call_deferred()
 
 
@@ -38,6 +38,7 @@ func _run() -> void:
 	if await _boot() and await _test_join():
 		await _test_moving()
 		await _test_a_coin()
+		await _test_chat()
 		await _test_leaving()
 	await _test_a_lost_input()
 	if _link != null:
@@ -180,6 +181,63 @@ func _test_a_coin() -> void:
 	check(arrived, "Tab shows the server's board: this player, their coins and their time (%s)" % str(menu.scoreboard.rows()))
 	menu.scoreboard.close()
 	done()
+
+
+## The chat box on the real client: a line typed goes through the server and comes back, the
+## server's own lines are drawn, `!sm` never reaches the server, and typing does not steer.
+func _test_chat() -> void:
+	section("chat")
+	var chat: DotChatWindow = _client.get("chat")
+	var heard: Array = []
+	_server.chat.message_sent.connect(func(_session: Object, text: String, _team: bool) -> void: heard.append(text))
+	chat.call(&"_on_submitted", "hello from Ada")
+	check(await _until(func() -> bool: return _shown(chat, "hello from Ada")),
+		"a line typed in the box goes through the server and is drawn with its speaker")
+	_server.broadcast_message("the server speaks")
+	check(await _until(func() -> bool: return _shown(chat, "the server speaks")),
+		"a line the server says (a vote, a `say`) is drawn")
+	# An admin's line goes only to staff, and this player is not, so it is handed to the
+	# client's handler as the link would hand it.
+	_client.call(&"_on_chat_line", {"kind": "admin", "name": "(ADMIN) Bob", "text": "be nice"})
+	check(_shown(chat, "be nice"), "and so is an admin's")
+
+	var rows_before := chat.history().size()
+	chat.call(&"_on_submitted", "!sm")
+	await _settle(10)
+	check(not heard.has("!sm") and not heard.has("sm"), "`!sm` is run on the client and never reaches the server")
+	check(chat.history().size() > rows_before, "and it answers in the box (%s)" % str(chat.history().back()))
+	# A muted player's lines are dropped. In memory only: the suite's list is not the player's.
+	var mutes: DotChatSelfMute = DotChatSelfMute.shared()
+	var kept_path := mutes.path
+	mutes.path = ""
+	mutes.set_muted({"name": "Mallory"}, true)
+	_client.call(&"_on_chat_line", {"kind": "all", "userid": 99, "name": "Mallory", "text": "spam spam"})
+	check(not _shown(chat, "spam spam"), "a line from somebody this player muted is not drawn")
+	mutes.set_muted({"name": "Mallory"}, false)
+	mutes.path = kept_path
+	var console: DotConsoleController = _client.get("console")
+	check(console != null and console.all_names().has("sm"), "the console has `sm` too")
+
+	# Typing is not steering: a player pressing right while the box is open moves nowhere.
+	# The steer hook stands in for the keys, which a headless run cannot hold.
+	_client.set("steer", func() -> Vector2: return Vector2.RIGHT)
+	chat.open()
+	var open_intent: Vector2 = _client.call(&"_intent")
+	chat.close()
+	var closed_intent: Vector2 = _client.call(&"_intent")
+	check(open_intent == Vector2.ZERO and closed_intent == Vector2.RIGHT,
+		"pressing right while the box is open does not move the player (open %s, closed %s)" % [open_intent, closed_intent])
+	_client.set("steer", func() -> Vector2: return Vector2.ZERO)
+	done()
+
+
+## Whether any row of the chat box's history has [param text] in it.
+func _shown(chat: DotChatWindow, text: String) -> bool:
+	for row: Variant in chat.history():
+		for part: Variant in row:
+			if text in str((part as Dictionary).get("text", "")):
+				return true
+	return false
 
 
 func _test_leaving() -> void:
