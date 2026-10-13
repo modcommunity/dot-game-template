@@ -50,6 +50,38 @@ class Player:
 	var intent: Vector2 = Vector2.ZERO
 	var score: int = 0
 
+	## Where they stood when their last tick began, and the tick before that: what a frame is
+	## drawn between (see [method drawn_position]). Recorded by [method TplGame.move], so only
+	## on a machine that simulates this player; NAN until a tick has run.
+	var drawn_from: Vector2 = Vector2(NAN, NAN)
+	var drawn_two_back: Vector2 = Vector2(NAN, NAN)
+
+	## Where to DRAW them on a frame [param alpha] of the way through their last tick.
+	##
+	## [b]A player this machine simulates moves once a tick, and the screen draws more often
+	## than that[/b] (60 ticks against a 144 Hz monitor): drawn where the tick left them, they
+	## stand still on most frames and jump on the rest. So they are drawn between where the
+	## last tick began and where it ended. [param alpha] is usually 0..1; a connected client's
+	## clock gives -1 to 2 for a moment after a physics frame that ran no tick, or two (see
+	## [code]tpl_view.gd[/code]'s [code]frame_alpha[/code]), and the frame is drawn on along the last step past 1
+	## and between the two ticks before below 0. A player never simulated here (somebody
+	## else's, on a client) is already smoothed by the netcode and is drawn where they are.
+	func drawn_position(alpha: float) -> Vector2:
+		if not drawn_from.is_finite():
+			return position
+		var step := position - drawn_from
+		# More than a body's width in one tick is a teleport (a new arena, a correction),
+		# never motion to draw through.
+		if step.length() > PLAYER_RADIUS * 2.0:
+			return position
+		if alpha > 1.0:
+			return position + step * minf(alpha - 1.0, 1.0)
+		if alpha < 0.0:
+			if not drawn_two_back.is_finite():
+				return drawn_from
+			return drawn_two_back.lerp(drawn_from, maxf(alpha + 1.0, 0.0))
+		return drawn_from.lerp(position, alpha)
+
 
 ## Whether this copy decides things. See the class note.
 var authoritative: bool = true
@@ -152,7 +184,12 @@ static func step(from: Vector2, intent: Vector2, delta: float, walls: Vector2 = 
 	return moved.clamp(edge, walls - edge)
 
 
+## One tick of [param who]'s movement, remembering where it began for [method Player.drawn_position].
+## On a client's own player this runs again for every tick dot-net replays after a correction,
+## so what is remembered is the last replayed tick's, which is the one on screen.
 func move(who: Player, delta: float) -> void:
+	who.drawn_two_back = who.drawn_from
+	who.drawn_from = who.position
 	who.position = step(who.position, who.intent, delta, size)
 
 

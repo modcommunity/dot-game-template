@@ -11,7 +11,7 @@ A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys 
 Small as it is, it is the whole shape of a platform game:
 
 - **Server-authoritative.** The server runs the rules and decides every score. Clients send only what they are pressing.
-- **Predicted.** Your own disc moves the instant you press a key; the server's answer arrives a round trip later and corrects it if they disagree. Everybody else is drawn smoothly between the server's updates.
+- **Predicted.** Your own disc moves the instant you press a key; the server's answer arrives a round trip later and corrects it if they disagree. Your disc is drawn between its ticks, so it glides on a fast screen, and everybody else is drawn smoothly between the server's updates.
 - **Delivered.** It is packaged as a signed *pack* that a server and every player's client download and mount at runtime. Nobody rebuilds a client to play it.
 - **Offline too.** Run the project on its own and the same scene plays a single-player game.
 

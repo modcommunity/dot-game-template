@@ -10,7 +10,7 @@ const TplGame := preload("../game/tpl_game.gd")
 
 
 func _ready() -> void:
-	checks = 24
+	checks = 27
 	print("dot-game-template: the rules")
 
 	section("a game starts")
@@ -38,6 +38,22 @@ func _ready() -> void:
 	# What prediction rests on: the same input from the same place gives the same place.
 	check(TplGame.step(from, Vector2(0.3, -0.7), 1.0 / 60.0) == TplGame.step(from, Vector2(0.3, -0.7), 1.0 / 60.0),
 		"a step is a pure function of where you were, what you pressed and for how long")
+	done()
+
+	section("drawn between ticks")
+	var runner := _game()
+	var dot: TplGame.Player = runner.add_player(5, "Bo")
+	check(dot.drawn_position(0.5) == dot.position, "before a tick has run, a player is drawn where they are")
+	dot.intent = Vector2.RIGHT
+	runner.move(dot, 0.1)
+	var start := dot.drawn_from
+	runner.move(dot, 0.1)
+	check(dot.drawn_position(0.5).is_equal_approx(dot.drawn_from.lerp(dot.position, 0.5))
+		and dot.drawn_position(1.5).is_equal_approx(dot.position + (dot.position - dot.drawn_from) * 0.5)
+		and dot.drawn_position(-0.5).is_equal_approx(start.lerp(dot.drawn_from, 0.5)),
+		"a frame is drawn between the last two ticks, on past the last below 2, between the two before above -1")
+	dot.position += Vector2(0.0, 300.0)
+	check(dot.drawn_position(0.5) == dot.position, "and a jump of more than a body's width is drawn where it landed")
 	done()
 
 	section("coins")

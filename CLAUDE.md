@@ -44,6 +44,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - Keep it small: a feature a newcomer does not need on day one goes in the README as a next step, not in the code.
 - No `class_name`; every `res://` string naming the game's own files through `TplPaths.rebase()`; `extends`/`preload`/scene paths relative. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
 - `TplGame.step` is pure; nothing that differs between machines may reach it, and the client predicts with the decoded input. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
+- A player this machine simulates (your own connected, everybody offline) is drawn at `Player.drawn_position(alpha)`, between its last two ticks; connected the alpha is the clock's `render_alpha` (by name), not the engine's fraction. Anything new that moves once a tick and is drawn gets the same. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - Every input packet carries the last `INPUT_COPIES` commands; the server skips copies at or below `last_consumed_tick`. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - Nothing is sent to a client before its READY. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - Read keys with `Input.is_physical_key_pressed`: `project.godot`'s input map does not travel in a pack. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)

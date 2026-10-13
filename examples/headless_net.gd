@@ -27,7 +27,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 39
+	checks = 42
 	_run.call_deferred()
 
 
@@ -41,6 +41,7 @@ func _run() -> void:
 		await _test_a_coin()
 		await _test_chat()
 		await _test_map_menu()
+		await _test_drawn_through_a_slip()
 		await _test_leaving()
 	await _test_a_lost_input()
 	if _link != null:
@@ -291,6 +292,74 @@ func _test_map_menu() -> void:
 		"and the choice is the change, for everybody (%s)" % maps.last_said)
 	_server.console.find_cvar("sv_map_menu_flag").force_set("generic")
 	maps.menu.close_all()
+	done()
+
+
+## Your own player is drawn between its ticks at the clock's render alpha, and a physics frame
+## the clock's drift leaves with no tick, or with two, is drawn through.
+##
+## The connected client hands its view its clock. The motion itself is measured on a clock of
+## its own, which nothing steers: over a socket the clock's drift makes slips of its own at
+## moments nobody chooses, and two in a row are more than render_alpha takes back by design.
+## Frames are drawn a third of the way through their tick, with one no-tick and one two-tick
+## frame forced, beside a control drawn at that third alone (the engine's fraction, how it would
+## be drawn without the clock). A frame that moves under half the steady step is a stall; over
+## one and a half, a double.
+func _test_drawn_through_a_slip() -> void:
+	section("your own player is drawn through a frame with no tick, or two")
+	var net: DotNetManager = _client.get("net")
+	var view: Node = _client.get("view")
+	await get_tree().process_frame
+	check(view.get("render_clock") == net.clock and is_equal_approx(float(view.call(&"frame_alpha")), net.clock.render_alpha()),
+		"the connected client's view draws at its netcode clock's render alpha")
+
+	var clock := DotNetClock.new(60)
+	var dt := clock.tick_duration()
+	var game := TplGame.new()
+	add_child(game)
+	var me: TplGame.Player = game.add_player(1, "Ada")
+	me.position = Vector2(100.0, 300.0)
+	me.intent = Vector2.RIGHT
+	var drawn: Array[Vector2] = []
+	var control: Array[Vector2] = []
+	var frame := func(delta: float) -> void:
+		for _i in range(clock.advance(delta)):
+			game.move(me, dt)
+		drawn.append(me.drawn_position(clock.render_alpha(0.33, dt)))
+		control.append(me.drawn_position(0.33))
+	for _i in range(6):
+		frame.call(dt)
+	frame.call(0.0)
+	for _i in range(6):
+		frame.call(dt)
+	clock.set(&"_accumulator", float(clock.get(&"_accumulator")) + dt)
+	frame.call(dt)
+	for _i in range(6):
+		frame.call(dt)
+	game.queue_free()
+
+	var judge := func(points: Array[Vector2]) -> Array:
+		var steps: Array[float] = []
+		for i in range(1, points.size()):
+			steps.append(points[i].distance_to(points[i - 1]))
+		var sorted := steps.duplicate()
+		sorted.sort()
+		var steady: float = sorted[sorted.size() / 2]
+		var stalled := 0
+		var doubled := 0
+		for s in steps:
+			if s < steady * 0.5:
+				stalled += 1
+			elif s > steady * 1.5:
+				doubled += 1
+		return [stalled, doubled, steady]
+
+	var on_clock: Array = judge.call(drawn)
+	var alone: Array = judge.call(control)
+	check(int(alone[0]) >= 1 and int(alone[1]) >= 1,
+		"the control (a fraction alone) stalls on the frame with no tick and doubles on the one with two (%d, %d)" % [alone[0], alone[1]])
+	check(int(on_clock[0]) == 0 and int(on_clock[1]) == 0,
+		"drawn at the clock's render alpha, no frame stalls or doubles (%d, %d; steady %.2f units a frame)" % [on_clock[0], on_clock[1], on_clock[2]])
 	done()
 
 

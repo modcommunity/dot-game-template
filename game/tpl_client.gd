@@ -282,6 +282,9 @@ func _process(_delta: float) -> void:
 	if net != null:
 		# Every frame: this is what turns twenty snapshots a second into smooth motion.
 		net.interpolate_frame()
+	# Your own player is drawn between its ticks at the clock's render alpha (see
+	# TplView.frame_alpha). Offline there is no clock, and the engine's fraction is exact.
+	view.render_clock = net.clock if net != null else null
 	var lines := PackedStringArray()
 	for who: TplGame.Player in game.players.values():
 		lines.append("%s%s  %d" % ["> " if who.id == local_id else "  ", who.name, who.score])

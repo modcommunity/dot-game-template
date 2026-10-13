@@ -13,6 +13,10 @@ var game: TplGame = null
 ## Which player to ring in white. 0 until the client knows who it is.
 var local_id: int = 0
 
+## A connected client's dot-net clock, which says how far through its tick a frame is; null
+## offline. Set by the client every frame. See [method frame_alpha].
+var render_clock: Object = null
+
 
 func _process(_delta: float) -> void:
 	_fit()
@@ -48,11 +52,31 @@ func _draw() -> void:
 		draw_circle(spot, TplGame.COIN_RADIUS, Color(0.96, 0.77, 0.26))
 
 	var font := ThemeDB.fallback_font
+	var alpha := frame_alpha()
 
 	for id: int in game.players:
 		var who: TplGame.Player = game.players[id]
-		draw_circle(who.position, TplGame.PLAYER_RADIUS, TplGame.colour_of(id))
+		# Between this player's last two ticks, when they are simulated here: your own player
+		# connected, everybody offline. See TplGame.Player.drawn_position.
+		var at := who.drawn_position(alpha)
+		draw_circle(at, TplGame.PLAYER_RADIUS, TplGame.colour_of(id))
 		if id == local_id:
-			draw_arc(who.position, TplGame.PLAYER_RADIUS + 3.0, 0.0, TAU, 32, Color.WHITE, 3.0)
-		draw_string(font, who.position + Vector2(-60.0, -TplGame.PLAYER_RADIUS - 8.0),
+			draw_arc(at, TplGame.PLAYER_RADIUS + 3.0, 0.0, TAU, 32, Color.WHITE, 3.0)
+		draw_string(font, at + Vector2(-60.0, -TplGame.PLAYER_RADIUS - 8.0),
 			who.name, HORIZONTAL_ALIGNMENT_CENTER, 120.0, 16)
+
+
+## How far through its tick a frame drawn now is.
+##
+## [b]Connected, the clock's `render_alpha()`, not the engine's physics fraction.[/b] The
+## clock stretches and shrinks its ticks while it settles on the server, so now and then a
+## physics frame runs no tick, or two. Drawn at the engine's fraction, the frame after one
+## with none goes back over the step it just drew (the player stands still) and the frame
+## after one with two skips a step (it moves double). `render_alpha` keeps the drawing where
+## it was and takes the slip back over the next few ticks. Asked by name, so a client shell
+## with an older dot-net draws at the engine's fraction. Offline every physics frame is one
+## tick, and the engine's fraction is exact.
+func frame_alpha() -> float:
+	if render_clock != null and is_instance_valid(render_clock) and render_clock.has_method(&"render_alpha"):
+		return float(render_clock.call(&"render_alpha"))
+	return clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
