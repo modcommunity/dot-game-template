@@ -1,5 +1,6 @@
 extends DotGameModule
 
+const TplArenas := preload("tpl_arenas.gd")
 const TplBridge := preload("net/tpl_bridge.gd")
 const TplGame := preload("tpl_game.gd")
 const TplPaths := preload("tpl_paths.gd")
@@ -14,6 +15,14 @@ const TplPaths := preload("tpl_paths.gd")
 ##
 ## No `class_name`, here or anywhere in this repository: a delivered pack's class names are
 ## never registered in the host, so a script that used one would not compile there.
+
+## The players' say over the arena: dot-vote's director, whose commands include the map
+## menu's server half. See [method _build_map_menu].
+var director: DotVoteDirector = null
+var vote_commands: DotVoteCommands = null
+
+## Connected to the server, which outlives this module, so it is let go in [method _game_unload].
+var _on_left: Callable = Callable()
 
 
 ## For a server that has this game in its own project rather than in a pack: the suites, and a
@@ -47,7 +56,98 @@ func _make_bridge() -> Node:
 
 func _game_load() -> DotResult:
 	add_command("tpl_status", _cmd_status, "Show the players, their scores and the coins")
+	_build_map_menu()
 	return DotResult.success(null)
+
+
+## M on a server: dot-vote's map menu, over a vote of the arenas.
+##
+## [b]Who may change the arena is the server owner's call[/b], through the `sv_map_menu_flag`
+## cvar the map menu registers: `generic` by default, the flag every staff group from moderator
+## up holds; `changemap` for admins only; empty for anybody. A player without it is offered a
+## vote instead: choosing an arena nominates it and rocks the vote (`!rtv`), and when enough
+## players have, a ballot opens in chat for twenty seconds (`!vote 2`). The client half is [method
+## DotMenu.use_maps] in tpl_client.gd, which asks the server with `/mapmenu`.
+##
+## [b]The vote is here because the menu is its server half[/b]: dot-vote's `DotVoteMapMenu`
+## lists the director's choices and falls back to its nominate and rock-the-vote. The rules are
+## the smallest that make sense for a game with no clock: no time limit, nothing but rocking
+## the vote opens a ballot, and the winner is played at once.
+func _build_map_menu() -> void:
+	var world := game as TplGame
+	var source := DotVoteListSource.new()
+	source.label = "arenas"
+	for arena: Dictionary in TplArenas.LIST:
+		var choice := DotVoteChoice.of(arena["id"], arena["name"])
+		choice.description = arena["about"]
+		var _added := source.add(choice)
+	source.current = world.arena["id"]
+	source.apply_fn = world.change_arena
+
+	var rules := DotVoteRules.new()
+	rules.trigger = DotVoteRules.Trigger.RTV_ONLY
+	rules.duration_sec = 0.0
+	rules.apply = DotVoteRules.Apply.IMMEDIATE
+	rules.rtv_apply = DotVoteRules.Apply.IMMEDIATE
+	# The ballot's "Don't change" already stands for the arena being played.
+	rules.include_current = false
+	rules.include_extend = false
+	rules.cooldown = 0
+	rules.vote_duration_sec = 20.0
+
+	director = DotVoteDirector.new()
+	director.name = "ArenaVote"
+	director.rules = rules
+	director.source = source
+	# The arena_changed signal below calls begin() for every change, the menu's and the vote's
+	# alike, so the director must not call it a second time for its own.
+	director.begin_on_apply = false
+	director.player_count_fn = func() -> int: return server.playing_sessions().size()
+	# What the vote says goes to everybody's chat box as the server's own line.
+	director.announce_fn = func(line: String) -> void: server.broadcast_message(line)
+	# A voter is `u<userid>` (dot-vote's commands' spelling); the lines name them properly.
+	director.people_fn = func(voter: StringName) -> Dictionary:
+		var session := server.session_by_userid(String(voter).trim_prefix("u").to_int())
+		return {"name": session.display_name} if session != null else {}
+	add_child(director)
+	# How to vote, when a ballot opens: the chat box is this game's only ballot.
+	director.vote_opened.connect(func(options: Array, _seconds: float) -> void:
+		var numbered := PackedStringArray()
+		for i in range(options.size()):
+			numbered.append("%d. %s" % [i + 1, director.option_label(StringName(str(options[i])))])
+		server.broadcast_message("Type !vote and a number: %s" % "   ".join(numbered)))
+
+	vote_commands = DotVoteCommands.new()
+	vote_commands.director = director
+	# `!vote 2` rather than dot-vote's default `!votefor 2`: nothing else here is called vote.
+	vote_commands.names = {"vote": "vote"}
+	var _bound := vote_commands.bind(self)
+	# The menu changes the arena now, through the same function a vote's winner goes through.
+	vote_commands.map_menu.change_fn = world.change_arena
+	vote_commands.map_menu.rows_fn = func(_rows: Array) -> Array: return TplArenas.rows(world.arena["id"])
+
+	director.begin(world.arena["id"])
+	var _reported := report_map(String(world.arena["id"]))
+	world.arena_changed.connect(func(id: StringName) -> void:
+		source.current = id
+		director.begin(id)
+		var _told := report_map(String(id)))
+	# A player who leaves takes their rock-the-vote with them. dot-vote's commands name a voter
+	# `u<userid>`.
+	_on_left = func(session: DotClientSession, _reason: String) -> void:
+		director.forget_voter(StringName("u%d" % session.userid))
+	server.client_disconnected.connect(_on_left)
+
+
+func _game_unload() -> void:
+	if _on_left.is_valid() and server.client_disconnected.is_connected(_on_left):
+		server.client_disconnected.disconnect(_on_left)
+
+
+## The vote's clock, on the server's tick.
+func _game_tick(_tick: int, delta: float) -> void:
+	if director != null:
+		director.advance(delta)
 
 
 ## This game's column on the Tab board. dot-server already sends every player's name, ping

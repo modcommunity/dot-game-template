@@ -1,7 +1,7 @@
 extends DotNetMessage
 
-## Everything the server tells a client that is not a snapshot: who you are, where the coins
-## are, who arrived and who left. A kind and a body, so a new kind is one line here and one
+## Everything the server tells a client that is not a snapshot: who you are, which arena it is,
+## where the coins are, who arrived and who left. A kind and a body, so a new kind is one line here and one
 ## handler in TplBridge rather than a new message type.
 
 const NAME := &"tpl.event"
@@ -9,7 +9,7 @@ const NAME := &"tpl.event"
 ## [b]Append only.[/b] The number IS the wire: a kind inserted in the middle renumbers every
 ## kind after it, and an older client reads a COIN as a SPAWN. A client older than a new kind
 ## drops it (see [method _validate]).
-enum Kind { HELLO, COINS, COIN, SPAWN, DESPAWN }
+enum Kind { HELLO, COINS, COIN, SPAWN, DESPAWN, ARENA }
 
 const KIND_BITS := 4
 const MAX_BODY := 2048

@@ -18,7 +18,8 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, then dot-game's, dot-net's a
 | Path | What |
 | --- | --- |
 | `game/tpl_game.gd` | the whole game; `step` is static and pure (what prediction runs) |
-| `game/tpl_module.gd`, `tpl_server.gd` | the thin `DotGameModule` and the server scene |
+| `game/tpl_arenas.gd` | the maps, as data: id, name, size, coin count, floor; what M lists |
+| `game/tpl_module.gd`, `tpl_server.gd` | the thin `DotGameModule` (plus the arena vote and the M menu's server half) and the server scene |
 | `game/tpl_client.gd`, `tpl_view.gd` | the client (settings through `DotMenuSettings`, console through `DotConsoleKit`, chat through dot-ui's `DotChatWindow`) and drawing |
 | `game/tpl_paths.gd` | `rebase()` / `rebase_onto()` for delivery |
 | `game/net/` | `tpl_bridge.gd` (the only file naming the game and dot-net), `tpl_link.gd` (the one `@rpc` node), `tpl_command.gd`, `tpl_event.gd`, `tpl_request.gd`, `tpl_player_net.gd` |
@@ -48,6 +49,8 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - Read keys with `Input.is_physical_key_pressed`: `project.godot`'s input map does not travel in a pack. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - `_intent` returns zero while the chat box is open, before the steer hook: keys are polled, and a focused line does not stop that. [design](docs/design.md#chat-and-why-it-is-in)
 - Chat goes through `DotClientLink.send_chat` and comes back on `chat_received`; never draw a line on send, and never send `!sm`/`/sm` (the box runs them). [design](docs/design.md#chat-and-why-it-is-in)
+- Every arena fits inside `TplGame.ARENA`, the range positions are sent in; arena ids are the wire (the ARENA event names one). The server sends ARENA before COINS, on admit and on every change. [design](docs/design.md#arenas-and-the-m-menu)
+- M is dot-menu's `use_maps` on the client and dot-vote's map menu on the server; who may change directly is `sv_map_menu_flag` (`generic`, staff, by default), everybody else gets a vote. Change the arena only through `TplGame.change_arena`, which the menu, the vote and solo all call. [design](docs/design.md#arenas-and-the-m-menu)
 - RPC methods are named `_rpc_*`, never a Node virtual. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - The HUD is a full-rect root Control the menu themes and scales (`settings.menu.follow_hud(root, accent)`, by name); put everything the HUD draws under it, and give your accent as a Theme rather than colouring Labels by hand.
 - Commit before trusting dot-server-deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)

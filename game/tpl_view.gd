@@ -19,12 +19,14 @@ func _process(_delta: float) -> void:
 	queue_redraw()
 
 
-## Scales the arena to the window, letterboxed.
+## Scales the largest arena to the window, letterboxed, and centres the one being played in
+## it: a smaller arena looks smaller, rather than the same size with bigger players.
 func _fit() -> void:
 	var window := get_viewport_rect().size
 	var fit := minf(window.x / TplGame.ARENA.x, window.y / TplGame.ARENA.y)
+	var walls := game.size if game != null else TplGame.ARENA
 	scale = Vector2(fit, fit)
-	position = (window - TplGame.ARENA * fit) * 0.5
+	position = (window - walls * fit) * 0.5
 
 
 ## Where a point on the screen is in the arena. For touch.
@@ -33,11 +35,14 @@ func to_arena(screen: Vector2) -> Vector2:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, TplGame.ARENA), Color(0.11, 0.13, 0.18))
-	draw_rect(Rect2(Vector2.ZERO, TplGame.ARENA), Color(0.35, 0.4, 0.5), false, 4.0)
+	# Everything outside the walls, so a small arena sits in the dark rather than in grey.
+	draw_rect(Rect2(-position / scale.x, get_viewport_rect().size / scale.x), Color(0.05, 0.06, 0.08))
 
 	if game == null:
 		return
+
+	draw_rect(Rect2(Vector2.ZERO, game.size), game.arena["floor"])
+	draw_rect(Rect2(Vector2.ZERO, game.size), Color(0.35, 0.4, 0.5), false, 4.0)
 
 	for spot in game.coins:
 		draw_circle(spot, TplGame.COIN_RADIUS, Color(0.96, 0.77, 0.26))

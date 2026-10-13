@@ -1,5 +1,6 @@
 extends Node
 
+const TplArenas := preload("tpl_arenas.gd")
 const TplBridge := preload("net/tpl_bridge.gd")
 const TplGame := preload("tpl_game.gd")
 const TplView := preload("tpl_view.gd")
@@ -16,6 +17,9 @@ const TplView := preload("tpl_view.gd")
 ## [b]Escape is the menu and Tab, held, is the scoreboard[/b], both dot-menu's: the stock
 ## window and frame-rate settings and six themes, and a board of every player's coins, time
 ## on the server and ping. See [method _build_menu].
+##
+## [b]M is the map menu[/b], dot-menu's: the arenas, and choosing one changes it. See
+## [method _build_maps].
 ##
 ## [b]Y is chat[/b], dot-ui's chat box: what players say, and what the server says (a vote, an
 ## admin's `say`, the reply to a command). See [method _build_chat].
@@ -136,6 +140,28 @@ func _build_menu(offline: bool) -> void:
 			for who: TplGame.Player in game.players.values():
 				rows.append({"id": who.id, "name": who.name, "coins": who.score, "you": who.id == local_id})
 			return {"server": {"name": "Coin Grab", "game": "offline"}, "players": rows}
+	_build_maps(offline)
+
+
+## M: the arenas (tpl_arenas.gd), dot-menu's map menu.
+##
+## [b]Solo the choice is the change[/b], made here at once. [b]Connected, the server decides[/b]:
+## the menu asks it with `/mapmenu`, the server answers with its list and whether this player
+## holds the permission its owner named (`sv_map_menu_flag`, staff by default), and changes the
+## arena for everybody or, for anybody else, starts a vote for it (tpl_module.gd). By name,
+## because a client shell older than the map menu still runs the game without it.
+func _build_maps(offline: bool) -> void:
+	if not settings.has_method(&"use_maps"):
+		return
+	var maps: Variant = settings.call(&"use_maps",
+		func() -> Array: return TplArenas.rows(game.arena["id"]),
+		func(id: StringName) -> DotResult: return game.change_arena(id))
+	if maps is Object:
+		(maps as Object).set(&"title", "Change arena")
+		(maps as Object).set(&"noun", "arenas")
+		# Played offline beside a link (`--offline`): there is no server to ask.
+		if offline:
+			(maps as Object).set(&"link_service", &"")
 
 
 ## The chat box: Y opens it, Enter sends, Escape closes.
@@ -260,7 +286,7 @@ func _process(_delta: float) -> void:
 	for who: TplGame.Player in game.players.values():
 		lines.append("%s%s  %d" % ["> " if who.id == local_id else "  ", who.name, who.score])
 	if net == null:
-		lines.append("\nWASD, arrows or touch to move. Tab: scores. Y: chat. Esc: menu")
+		lines.append("\nWASD, arrows or touch to move. Tab: scores. M: arenas. Y: chat. Esc: menu")
 	_hud.text = "\n".join(lines) if not lines.is_empty() else "Joining..."
 
 

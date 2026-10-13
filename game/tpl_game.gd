@@ -12,10 +12,13 @@ extends Node
 ## Nothing here needs a frame, a window or a physics server, which is why
 ## `examples/headless_rules.tscn` can run all of it.
 
+const TplArenas := preload("tpl_arenas.gd")
+
 ## Where the server's copy publishes itself, for [code]tpl_module.gd[/code] to find.
 const SERVICE := &"tpl_game"
 
-## The arena, in world units. The client scales it to fit whatever window it gets.
+## The largest arena, in world units: every arena in [code]tpl_arenas.gd[/code] fits inside
+## it, positions are sent within it, and the client scales it to fit whatever window it gets.
 const ARENA := Vector2(1280.0, 720.0)
 
 const PLAYER_RADIUS := 22.0
@@ -24,7 +27,6 @@ const PLAYER_RADIUS := 22.0
 const PLAYER_SPEED := 320.0
 
 const COIN_RADIUS := 11.0
-const COIN_COUNT := 8
 
 ## What one coin is worth. The README's first exercise.
 const COIN_VALUE := 1
@@ -34,6 +36,9 @@ signal coin_moved(index: int, position: Vector2)
 
 ## Somebody's score changed. Server side; clients see it through the replicated score.
 signal scored(player_id: int, score: int)
+
+## The arena changed (see [method change_arena]). Server side and offline.
+signal arena_changed(id: StringName)
 
 
 ## One person in the arena. The rules never mention the netcode; it copies these fields.
@@ -58,6 +63,12 @@ var players: Dictionary = {}
 
 var coins: Array[Vector2] = []
 
+## The arena being played: a row of [code]tpl_arenas.gd[/code]'s list.
+var arena: Dictionary = TplArenas.find(TplArenas.DEFAULT)
+
+## Its size, which is where [method step] stops a player. The arena's top-left corner is 0, 0.
+var size: Vector2 = arena["size"]
+
 var collected: int = 0
 
 var _rng := RandomNumberGenerator.new()
@@ -80,8 +91,34 @@ func start(rng_seed: int = 0) -> void:
 		_rng.randomize()
 	coins.clear()
 	collected = 0
-	for _i in range(COIN_COUNT):
+	for _i in range(int(arena["coins"])):
 		coins.append(_free_spot())
+
+
+## Changes the arena for everybody: a fresh round on it, every score back to 0. What M does,
+## solo and on a server; the server's bridge tells every client. Only the authority calls it.
+func change_arena(id: StringName) -> DotResult:
+	if TplArenas.find(id).is_empty():
+		return DotResult.fail(DotError.CODE_INVALID, "There is no arena called '%s'." % id)
+	use_arena(id)
+	for who: Player in players.values():
+		who.score = 0
+	start()
+	arena_changed.emit(id)
+	return DotResult.success(id)
+
+
+## Takes [param id]'s size and floor without laying any coins: a client hears where they are
+## from the server. Anybody outside the new walls is moved inside them.
+func use_arena(id: StringName) -> void:
+	var found := TplArenas.find(id)
+	if found.is_empty():
+		return
+	arena = found
+	size = arena["size"]
+	var edge := Vector2(PLAYER_RADIUS, PLAYER_RADIUS)
+	for who: Player in players.values():
+		who.position = who.position.clamp(edge, size - edge)
 
 
 func add_player(id: int, display_name: String) -> Player:
@@ -90,7 +127,7 @@ func add_player(id: int, display_name: String) -> Player:
 	who.name = display_name
 	# Deterministic from the id, so a server and a client that both create this player put
 	# them in the same place before the first snapshot says so.
-	who.position = ARENA * 0.5 + Vector2(float(id % 7) - 3.0, float(id % 5) - 2.0) * 60.0
+	who.position = size * 0.5 + Vector2(float(id % 7) - 3.0, float(id % 5) - 2.0) * 60.0
 	players[id] = who
 	return who
 
@@ -108,14 +145,15 @@ func player(id: int) -> Player:
 ## [b]Static and pure, and that is the whole of client prediction.[/b] The owning client runs
 ## it on the same input as the server, a few ticks ahead, and they agree. Anything that differs
 ## between machines -- the clock, [code]randf()[/code], another player -- must never reach it.
-static func step(from: Vector2, intent: Vector2, delta: float) -> Vector2:
+## The arena's [param walls] are the same on both: the server says which arena it is.
+static func step(from: Vector2, intent: Vector2, delta: float, walls: Vector2 = ARENA) -> Vector2:
 	var moved := from + intent.limit_length(1.0) * PLAYER_SPEED * delta
 	var edge := Vector2(PLAYER_RADIUS, PLAYER_RADIUS)
-	return moved.clamp(edge, ARENA - edge)
+	return moved.clamp(edge, walls - edge)
 
 
 func move(who: Player, delta: float) -> void:
-	who.position = step(who.position, who.intent, delta)
+	who.position = step(who.position, who.intent, delta, size)
 
 
 ## Collects the first coin [param who] is touching; returns its index, or -1. Only the
@@ -149,7 +187,7 @@ func _free_spot() -> Vector2:
 	var margin := COIN_RADIUS * 3.0
 	var spot := Vector2.ZERO
 	for _attempt in range(16):
-		spot = Vector2(_rng.randf_range(margin, ARENA.x - margin), _rng.randf_range(margin, ARENA.y - margin))
+		spot = Vector2(_rng.randf_range(margin, size.x - margin), _rng.randf_range(margin, size.y - margin))
 		if players.values().all(func(who: Player) -> bool: return who.position.distance_to(spot) >= PLAYER_RADIUS * 3.0):
 			break
 	return spot
@@ -166,11 +204,11 @@ func describe() -> Dictionary:
 	var scores := {}
 	for id: int in players:
 		scores[id] = (players[id] as Player).score
-	return {"players": players.size(), "coins": coins.size(), "collected": collected, "scores": scores}
+	return {"arena": String(arena["id"]), "players": players.size(), "coins": coins.size(), "collected": collected, "scores": scores}
 
 
 func describe_lines() -> PackedStringArray:
-	var lines := PackedStringArray(["%d player(s), %d coin(s) collected" % [players.size(), collected]])
+	var lines := PackedStringArray(["%s: %d player(s), %d coin(s) collected" % [arena["name"], players.size(), collected]])
 	for id: int in players:
 		var who: Player = players[id]
 		lines.append("  %-20s %4d  at %s" % [who.name, who.score, who.position.round()])

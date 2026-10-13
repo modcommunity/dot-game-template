@@ -11,7 +11,8 @@ const TplRequest := preload("tpl_request.gd")
 ## or ends here, on both ends.
 ##
 ## Four things travel through [TplLink]: SNAPSHOTS (dot-net's: positions and scores), INPUTS
-## (the client's last few intents, every tick), EVENTS (hello, coins, spawn, despawn) and REQUESTS (ready).
+## (the client's last few intents, every tick), EVENTS (hello, arena, coins, spawn, despawn) and
+## REQUESTS (ready).
 ## dot-game's module calls [method add_player], [method remove_peer] and [method server_tick].
 
 ## The acknowledgement dot-net puts in front of every input. Fixed width, so it goes first.
@@ -81,6 +82,7 @@ func attach(p_game: TplGame, p_net: DotNetManager) -> DotResult:
 	net.messages.on(TplRequest.REQUEST, _on_request)
 	if net.is_server:
 		game.coin_moved.connect(_on_coin_moved)
+		game.arena_changed.connect(_on_arena_changed)
 	return DotResult.success(self)
 
 
@@ -155,13 +157,28 @@ func _admit(peer_id: int) -> void:
 	hello.write_uint(net.config.tick_rate, 8)
 	hello.write_uint(net.config.snapshot_rate, 8)
 	_tell(peer_id, TplEvent.Kind.HELLO, hello.to_bytes())
+	_tell_arena(peer_id)
+	for player_id: int in _nets:
+		_tell(peer_id, TplEvent.Kind.SPAWN, _spawn_body(player_id))
+
+
+## The arena, then its coins: the client takes the walls first, so no coin is ever outside them.
+func _tell_arena(peer_id: int) -> void:
+	var arena := DotNetWriter.new()
+	arena.write_string(String(game.arena["id"]), 64)
+	_tell(peer_id, TplEvent.Kind.ARENA, arena.to_bytes())
 	var coins := DotNetWriter.new()
 	coins.write_uint(game.coins.size(), 8)
 	for spot in game.coins:
 		_write_spot(coins, spot)
 	_tell(peer_id, TplEvent.Kind.COINS, coins.to_bytes())
-	for player_id: int in _nets:
-		_tell(peer_id, TplEvent.Kind.SPAWN, _spawn_body(player_id))
+
+
+## The map menu, a vote or the console changed the arena: everybody gets the new one. The
+## scores went back to 0 with it and reach clients in the next snapshot.
+func _on_arena_changed(_id: StringName) -> void:
+	for peer: int in _ready_peers:
+		_tell_arena(peer)
 
 
 func _on_coin_moved(index: int, spot: Vector2) -> void:
@@ -285,6 +302,10 @@ func _on_event(message: DotNetMessage) -> void:
 			_adopt_rates(reader.read_uint(8), reader.read_uint(8))
 			net.clock.sync_from_server(tick, float(rtt_source.call()) if rtt_source.is_valid() else 0.0)
 			hello_received.emit(local_id)
+		TplEvent.Kind.ARENA:
+			var id := reader.read_string(64)
+			if reader.ok():
+				game.use_arena(StringName(id))
 		TplEvent.Kind.COINS:
 			game.coins.clear()
 			for _i in range(reader.read_uint(8)):

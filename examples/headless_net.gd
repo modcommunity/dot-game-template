@@ -27,7 +27,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 27
+	checks = 39
 	_run.call_deferred()
 
 
@@ -35,10 +35,12 @@ func _run() -> void:
 	print("dot-game-template: a server and a client over a socket")
 	DotPaths.remove_tree(SERVER_DIR)
 	_test_kinds_fit()
+	await _test_map_menu_solo()
 	if await _boot() and await _test_join():
 		await _test_moving()
 		await _test_a_coin()
 		await _test_chat()
+		await _test_map_menu()
 		await _test_leaving()
 	await _test_a_lost_input()
 	if _link != null:
@@ -57,6 +59,28 @@ func _test_kinds_fit() -> void:
 	section("every kind fits its field")
 	check(TplEvent.fits(), "every event kind fits the kind field (%d kinds in %d bits)" % [TplEvent.Kind.size(), TplEvent.KIND_BITS])
 	check(TplRequest.asks_fit(), "every request kind fits it too (%d in %d bits)" % [TplRequest.Ask.size(), TplRequest.KIND_BITS])
+	done()
+
+
+## M with no server: the client scene run on its own (no link yet), and the choice is the change.
+func _test_map_menu_solo() -> void:
+	section("M: the map menu, solo")
+	var solo: Node = (load(CLIENT_SCENE) as PackedScene).instantiate()
+	add_child(solo)
+	await get_tree().process_frame
+	var menu: DotMenu = (solo.get("settings") as DotMenuSettings).menu
+	var maps: DotMenuMaps = menu.maps
+	check(maps != null and not maps.is_online() and InputMap.has_action(menu.maps_action),
+		"M is bound, and with no server the menu is solo")
+	menu.open_maps()
+	check(menu.any_open(), "M opens the arena list")
+	maps.call(&"_chosen", &"pocket")
+	var game: Node = solo.get("game")
+	check(game.get("arena")["id"] == &"pocket" and (game.get("coins") as Array).size() == 5,
+		"choosing one changes the arena at once, with its own coins")
+	menu.close_all()
+	solo.queue_free()
+	await get_tree().process_frame
 	done()
 
 
@@ -228,6 +252,45 @@ func _test_chat() -> void:
 	check(open_intent == Vector2.ZERO and closed_intent == Vector2.RIGHT,
 		"pressing right while the box is open does not move the player (open %s, closed %s)" % [open_intent, closed_intent])
 	_client.set("steer", func() -> Vector2: return Vector2.ZERO)
+	done()
+
+
+## M on a server: a player without the owner's flag is offered a vote and the vote changes the
+## arena; with the flag (here, the flag emptied so everybody holds it) the choice is the change.
+func _test_map_menu() -> void:
+	section("M: the map menu on a server")
+	var module: Node = _server.modules.get_module("tpl")
+	var maps: DotMenuMaps = ((_client.get("settings") as DotMenuSettings).menu).maps
+	check(maps != null and maps.is_online(), "M is wired, and connected it asks the server")
+	maps.open()
+	check(await _until(func() -> bool: return maps.last_offer.has("maps")), "the server answers with its arenas")
+	var offer := maps.last_offer
+	check(not bool(offer.get("allowed", true)) and str(offer.get("flag", "")) == "generic" and bool(offer.get("vote", false))
+		and (offer["maps"] as Array).size() == 3,
+		"a player who is not staff gets the list as a vote, by sv_map_menu_flag's default (%s)" % str(maps.describe()["offer"]))
+
+	# Rocking the vote waits two minutes into an arena by default; this suite has not got them.
+	(module.get("director") as DotVoteDirector).rules.rtv_delay_sec = 0.0
+	maps.call(&"_chosen", &"pocket")
+	check(await _until(func() -> bool: return "Nominated" in maps.last_said), "choosing one nominates it and rocks the vote (%s)" % maps.last_said)
+	check(await _until(func() -> bool: return (module.get("director") as DotVoteDirector).is_voting()), "and a ballot opens")
+	# The ballot is in chat: "Type !vote and a number: 1. Pocket ...". Nominated, Pocket is first.
+	_link.send_chat("!vote 1")
+	var game: Node = _client.get("game")
+	check(await _until(func() -> bool: return _server_game().get("arena")["id"] == &"pocket" and game.get("arena")["id"] == &"pocket"),
+		"the vote's winner is played: the server and the client are on Pocket")
+	check(await _until(func() -> bool: return (game.get("coins") as Array).size() == 5 and _client_player().position.x < 760.0),
+		"with Pocket's coins, and the player inside its walls")
+
+	_server.console.find_cvar("sv_map_menu_flag").force_set("")
+	maps.last_offer = {}
+	maps.open()
+	check(await _until(func() -> bool: return bool(maps.last_offer.get("allowed", false))), "with sv_map_menu_flag emptied, anybody may change it")
+	maps.call(&"_chosen", &"gold_rush")
+	check(await _until(func() -> bool: return game.get("arena")["id"] == &"gold_rush" and (game.get("coins") as Array).size() == 24),
+		"and the choice is the change, for everybody (%s)" % maps.last_said)
+	_server.console.find_cvar("sv_map_menu_flag").force_set("generic")
+	maps.menu.close_all()
 	done()
 
 

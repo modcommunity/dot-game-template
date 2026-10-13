@@ -6,7 +6,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## 1. What you get
 
-A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping. **Y** opens chat, which also shows what the server says (a vote, somebody joining, an admin). The key under Esc opens the console, where every setting is a command of its own name — `net_stat 2` draws what the connection is doing. `sm` in the console, or `!sm` in chat, is your own mute list: `sm` lists who is here, `sm 2` mutes the second of them for you alone, and nobody is told.
+A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping. **M** lists the arenas (the game's maps) and changes to the one you pick; on a server, staff change it and everybody else starts a vote. **Y** opens chat, which also shows what the server says (a vote, somebody joining, an admin). The key under Esc opens the console, where every setting is a command of its own name — `net_stat 2` draws what the connection is doing. `sm` in the console, or `!sm` in chat, is your own mute list: `sm` lists who is here, `sm 2` mutes the second of them for you alone, and nobody is told.
 
 Small as it is, it is the whole shape of a platform game:
 
@@ -18,6 +18,7 @@ Small as it is, it is the whole shape of a platform game:
 | File | What it is |
 | --- | --- |
 | `game/tpl_game.gd` | The rules and the state. Read this first. |
+| `game/tpl_arenas.gd` | The arenas, the game's maps, as data: size, coins, colour. |
 | `game/tpl_client.gd` | What a player runs: input, drawing, the netcode on a client, the menu and scoreboard, and chat. |
 | `game/tpl_view.gd` | Draws the arena, the coins and the players. |
 | `game/tpl_server.gd` | The scene a dedicated server loads. |
@@ -51,7 +52,7 @@ That renames every `tpl_` file and every `Tpl` name to your prefix (`game/cr_gam
 
 ## 3. Get the addons
 
-The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, dot-console for the console, and dot-chat for the self-mute list behind dot-ui's chat box). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
+The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, dot-console for the console, dot-chat for the self-mute list behind dot-ui's chat box, and dot-vote for the map menu and the vote on a server). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
 
 ```bash
 git clone https://github.com/modcommunity/dot-ci ../dot-ci
@@ -104,7 +105,9 @@ Run the last line twice for two players. After changing your game, run `./server
 
 ## 6. Change something real
 
-**Coins worth more, players faster.** The numbers are constants at the top of `game/tpl_game.gd`: `COIN_VALUE`, `PLAYER_SPEED`, `COIN_COUNT`, the arena's size. They are used by the server and by the client's prediction alike, which is the point: the server and the client run the same function to move a player (`TplGame.step`), so change it in one place.
+**Coins worth more, players faster.** The numbers are constants at the top of `game/tpl_game.gd`: `COIN_VALUE`, `PLAYER_SPEED`, `PLAYER_RADIUS`. They are used by the server and by the client's prediction alike, which is the point: the server and the client run the same function to move a player (`TplGame.step`), so change it in one place.
+
+**A new arena.** Add a row to `LIST` in `game/tpl_arenas.gd`: an id, a name, a size no bigger than `TplGame.ARENA`, a coin count and a floor colour. It is in the M menu and on the server's vote with nothing else to change. An arena with walls or obstacles in it is where `TplGame.step` grows them, and stays pure: give it the arena, never anything one machine knows and another does not.
 
 **Something new the server tells players** — say, a line when somebody takes a coin:
 
@@ -138,7 +141,7 @@ tools/check.sh           # import, parse every script, run every suite, test the
 tools/check.sh --quick   # without the rename test
 ```
 
-`examples/headless_pack.tscn` is the suite that refuses a `class_name` or a bare path, and it plants one of each first to prove it can still see them. `headless_rules` runs the rules with no window; `headless_net` boots a real dedicated server, loads the module by path the way a deployed server does, connects a real client over a real socket, steers it, checks that the move and a collected coin's score reach the client, that a chat line makes the round trip and `!sm` never leaves the client, and that an input packet lost on the way is made up by the copies in the next one. CI runs the parse pass and every `examples/headless_*` suite on each push (`.github/workflows/ci.yml`).
+`examples/headless_pack.tscn` is the suite that refuses a `class_name` or a bare path, and it plants one of each first to prove it can still see them. `headless_rules` runs the rules with no window; `headless_net` boots a real dedicated server, loads the module by path the way a deployed server does, connects a real client over a real socket, steers it, checks that the move and a collected coin's score reach the client, that a chat line makes the round trip and `!sm` never leaves the client, that M changes the arena solo, and on a server by vote or for staff directly, and that an input packet lost on the way is made up by the copies in the next one. CI runs the parse pass and every `examples/headless_*` suite on each push (`.github/workflows/ci.yml`).
 
 ## 8. Publish it
 
@@ -168,7 +171,7 @@ TMC_GAMES=alice/crate-rush ./server              # the newest version
 ./server --games alice/crate-rush@0.1.0          # or a particular one
 ```
 
-The server fetches the pack from its content origin (`content_urls` in `cfg/server.yml`, the platform's by default), checks its signature, writes your `game.yml` to `content/crate-rush/game.yml` with the right id and version stamped in, and starts it. Edit that file to change the player count or add cvars; it is never overwritten unless you pass `--refresh`. At the console the game is `crate-rush` (`changelevel crate-rush`), and your module's commands are there (`cr_status`). Players join it like any other server — from the server browser if it is listed, or by address — and their client downloads your pack as they connect.
+The server fetches the pack from its content origin (`content_urls` in `cfg/server.yml`, the platform's by default), checks its signature, writes your `game.yml` to `content/crate-rush/game.yml` with the right id and version stamped in, and starts it. Edit that file to change the player count or add cvars; it is never overwritten unless you pass `--refresh`. Who may change the arena from the M menu is the `sv_map_menu_flag` cvar: `generic` (moderators and up) by default, `changemap` for admins only, or empty for everybody; anybody without it gets a vote. At the console the game is `crate-rush` (`changelevel crate-rush`), and your module's commands are there (`cr_status`). Players join it like any other server — from the server browser if it is listed, or by address — and their client downloads your pack as they connect.
 
 ## 10. Versions: what "this game needs dot-net API level 2" means
 

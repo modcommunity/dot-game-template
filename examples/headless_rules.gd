@@ -1,5 +1,6 @@
 extends "suite.gd"
 
+const TplArenas := preload("../game/tpl_arenas.gd")
 const TplCommand := preload("../game/net/tpl_command.gd")
 const TplGame := preload("../game/tpl_game.gd")
 
@@ -9,12 +10,13 @@ const TplGame := preload("../game/tpl_game.gd")
 
 
 func _ready() -> void:
-	checks = 17
+	checks = 24
 	print("dot-game-template: the rules")
 
 	section("a game starts")
 	var game := _game()
-	check(game.coins.size() == TplGame.COIN_COUNT, "with %d coins" % TplGame.COIN_COUNT)
+	check(game.arena["id"] == TplArenas.DEFAULT and game.coins.size() == int(game.arena["coins"]),
+		"on the default arena, with its %d coins" % game.coins.size())
 	check(game.coins.all(func(spot: Vector2) -> bool: return Rect2(Vector2.ZERO, TplGame.ARENA).has_point(spot)),
 		"all of them inside the arena")
 	check(_game().coins == game.coins, "and the same seed lays them out the same way")
@@ -54,6 +56,28 @@ func _ready() -> void:
 	var copy: TplGame.Player = mirror.add_player(1, "Ada")
 	copy.position = mirror.coins[0]
 	check(mirror.collect(copy) == -1 and copy.score == 0, "a client's copy of the game never collects")
+	done()
+
+	section("arenas")
+	check(TplArenas.LIST.all(func(a: Dictionary) -> bool:
+		return a["size"].x <= TplGame.ARENA.x and a["size"].y <= TplGame.ARENA.y and int(a["coins"]) <= 255),
+		"every arena fits inside ARENA, the wire's range, and its coin count in a byte")
+	var changes: Array = []
+	game.arena_changed.connect(func(id: StringName) -> void: changes.append(id))
+	who.position = Vector2(1200.0, 700.0)
+	check(game.change_arena(&"pocket").ok and changes == [&"pocket"], "changing the arena says so")
+	var pocket := Rect2(Vector2.ZERO, game.size)
+	check(game.size == TplArenas.find(&"pocket")["size"] and game.coins.size() == int(game.arena["coins"])
+		and game.coins.all(func(spot: Vector2) -> bool: return pocket.has_point(spot)),
+		"and lays the new arena's own coins inside its walls (%d)" % game.coins.size())
+	check(pocket.grow(-TplGame.PLAYER_RADIUS + 0.01).has_point(who.position) and who.score == 0,
+		"a player outside the new walls is moved inside, and every score starts again")
+	check(TplGame.step(who.position, Vector2.RIGHT, 5.0, game.size).x == game.size.x - TplGame.PLAYER_RADIUS,
+		"and the new walls stop a player")
+	check(not game.change_arena(&"nowhere").ok and game.arena["id"] == &"pocket", "an arena that does not exist is refused")
+	var rows := TplArenas.rows(&"pocket")
+	check(rows.size() == TplArenas.LIST.size() and rows.filter(func(r: Dictionary) -> bool: return r["current"]).size() == 1,
+		"the M menu lists every arena, the one being played marked")
 	done()
 
 	section("what a client may send")
