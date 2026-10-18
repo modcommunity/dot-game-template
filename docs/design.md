@@ -16,7 +16,7 @@
 - **`net.service_scope = &"client"`**, so a server and a client in one process (every suite) do not replace each other's registry entry.
 - **Keys are read with `Input.is_physical_key_pressed`, not actions.** `project.godot` does not travel in a pack, so an input map defined there does not exist in the shell that mounts the game.
 - **The RPCs are `_rpc_*`, and that is not style.** The first version called one `_input`, which is Node's virtual: "The function signature doesn't match the parent", and every script preloading the link failed to compile.
-- **Settings and the console are dot-menu's `DotMenuSettings` and dot-console's `DotConsoleKit`**, the same as every game, so a developer starts with the Escape menu, the Tab board and `net_stat` the players already know. Chat is dot-ui's `DotChatWindow` over dot-server's chat ([below](#chat-and-why-it-is-in)).
+- **Settings and the console are dot-menu's `DotMenuSettings` and dot-console's `DotConsoleKit`, set up by dot-game's `DotGameClient`**, the same as every game, with the loading cover, Tab, M and the input block, so a developer starts with the Escape menu, the Tab board and `net_stat` the players already know. Chat is dot-ui's `DotChatWindow` over dot-server's chat ([below](#chat-and-why-it-is-in)).
 
 ## Arenas and the M menu
 

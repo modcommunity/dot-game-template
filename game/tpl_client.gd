@@ -5,6 +5,8 @@ const TplBridge := preload("net/tpl_bridge.gd")
 const TplGame := preload("tpl_game.gd")
 const TplView := preload("tpl_view.gd")
 
+const CHANNEL := "tpl.client"
+
 ## What a player runs: `scenes/tpl_client.tscn`. Offline, or joined to a server.
 ##
 ## [b]Whether there is a link decides which.[/b] The client shell connects a [DotClientLink],
@@ -14,12 +16,20 @@ const TplView := preload("tpl_view.gd")
 ## [b]Keys are read directly, not through the input map:[/b] project.godot does not travel in
 ## a pack, so an action defined there does not exist in the shell that mounts this game.
 ##
+## [b]The platform layer is dot-game's [DotGameClient][/b]: the loading cover, the settings
+## and the Escape menu, the console, the HUD's theme, Tab for the board, M for the map menu,
+## and input held while the cover is up, a menu is open or a chat line is being typed. What is
+## left here is what is this game's own. See [method _ready].
+##
 ## [b]Escape is the menu and Tab, held, is the scoreboard[/b], both dot-menu's: the stock
 ## window and frame-rate settings and six themes, and a board of every player's coins, time
 ## on the server and ping. See [method _build_menu].
 ##
-## [b]M is the map menu[/b], dot-menu's: the arenas, and choosing one changes it. See
-## [method _build_maps].
+## [b]M is the map menu[/b], dot-menu's: the arenas (tpl_arenas.gd). Solo the choice is the
+## change, made here at once; connected the server decides: the menu asks it with
+## `/mapmenu`, the server answers with its list and whether this player holds the permission
+## its owner named (`sv_map_menu_flag`, staff by default), and changes the arena for
+## everybody or, for anybody else, starts a vote for it (tpl_module.gd).
 ##
 ## [b]Y is chat[/b], dot-ui's chat box: what players say, and what the server says (a vote, an
 ## admin's `say`, the reply to a command). See [method _build_chat].
@@ -39,18 +49,15 @@ var net: DotNetManager = null
 ## Which player is this client's. Offline it is always 1.
 var local_id: int = 0
 
-## The loading cover. Closed until the local player exists, so nobody sees an empty arena
-## or steers before the server has placed them. See [method _ready].
-var gate: DotLoadGate = null
+## dot-game's platform layer: the loading cover (its [code]gate[/code]), the menu, the
+## console, the keys. See [method _ready].
+var platform: DotGameClient = null
 
 var _hud: Label = null
 var _hud_root: Control = null
 
 ## The Escape menu and the settings behind it. See [method _build_menu].
 var settings: DotMenuSettings = null
-
-## The player's console. See [method DotConsoleKit.build].
-var console: DotConsoleController = null
 
 ## The chat box. See [method _build_chat].
 var chat: DotChatWindow = null
@@ -59,9 +66,20 @@ var _touch_at: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	if link == null:
-		link = DotRegistry.get_node_service(DotClientLink.SERVICE) as DotClientLink
-	var offline := link == null or OS.get_cmdline_user_args().has("--offline")
+	# First, before anything is drawn: the loading cover (dot-core's load gate, through
+	# dot-game). Add your own holds on `platform.gate`: `gate.hold(&"map", "Loading")` now and
+	# `gate.release(&"map")` when it is built. It also covers the first frames' shader
+	# compiles. Nothing is held at first except the local player, asked every frame and met
+	# at once offline. No Camera3D in a 2D game, so none to wait for.
+	platform = DotGameClient.new()
+	platform.link = link
+	platform.require_camera = false
+	platform.spawned_fn = func() -> bool: return game != null and game.player(local_id) != null
+	# A 2D game played with a finger or a held mouse button: the pointer stays free.
+	platform.capture_pointer = false
+	add_child(platform)
+	link = platform.link as DotClientLink
+	var offline := platform.offline
 	game = TplGame.new()
 	game.authoritative = offline
 	add_child(game)
@@ -81,16 +99,19 @@ func _ready() -> void:
 	_hud.position = Vector2(16.0, 12.0)
 	_hud.add_theme_font_size_override("font_size", 20)
 	_hud_root.add_child(_hud)
-	_build_menu(offline)
+	_build_menu()
 	_build_chat(offline)
-	# The loading cover (dot-core). Add your own holds here: `gate.hold(&"map", "Loading")`
-	# now and `gate.release(&"map")` when it is built. The gate also covers the first
-	# frames' shader compiles. Nothing is held at first except this requirement, which is
-	# asked every frame and met at once offline. No Camera3D in a 2D game, so none to wait for.
-	gate = DotLoadGate.new()
-	gate.require_camera = false
-	add_child(gate)
-	gate.require(&"spawned", func() -> bool: return game.player(local_id) != null, "Joining")
+	# The settings, the menu, the console (the key under Escape), the HUD in the player's
+	# theme and HUD size, Tab and M: dot-game's, from what was just built.
+	platform.hud = _hud_root
+	platform.chat = chat
+	platform.board_snapshot_fn = board_snapshot
+	platform.maps_rows_fn = func() -> Array: return TplArenas.rows(game.arena["id"])
+	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_arena(id)
+	platform.maps_title = "Change arena"
+	platform.maps_noun = "arenas"
+	DotLog.result(CHANNEL, "the menu and the console", platform.setup())
+	_dress_board()
 	if offline:
 		game.start()
 		local_id = 1
@@ -100,13 +121,13 @@ func _ready() -> void:
 		_join()
 
 
-## Settings, the Escape menu and the Tab board, from dot-menu.
+## Settings and the Escape menu, from dot-menu; [DotGameClient] sets them up.
 ##
 ## Only the stock settings this game has something to apply to: the window, V-Sync, the
 ## frame-rate cap, the theme and the frame-rate counter. A 2D game with no audio has no
 ## use for a field of view, a render scale, effects or volumes, and a switch that changes
 ## nothing is worse than no switch. Add the groups back as the game grows them.
-func _build_menu(offline: bool) -> void:
+func _build_menu() -> void:
 	settings = DotMenuSettings.new()
 	settings.name = "Settings"
 	settings.directory = "user://tpl_settings"
@@ -118,23 +139,18 @@ func _build_menu(offline: bool) -> void:
 	settings.config.brand_name = "Coin Grab"
 	settings.config.show_help = false
 	settings.config.show_leave = false
-	add_child(settings)
-	if not settings.setup().ok or settings.menu == null:
+	platform.settings = settings
+	# Pass a Theme for your game's accent (dot-ui's DotHudPiece colours `highlight` and
+	# `plate_edge`); null is the menu's theme alone.
+	platform.hud_accent = null
+
+
+## The Tab board's columns. Connected, the rows are the server's roster plus the coins the
+## module adds; offline, [method board_snapshot].
+func _dress_board() -> void:
+	var board: DotMenuScoreboard = platform.board as DotMenuScoreboard
+	if board == null:
 		return
-
-	# The console (the key under Escape): net_stat and every other setting by name, and
-	# the server's console when one runs in this process. One of the menu's overlays, so
-	# opening it stops the player and frees the pointer exactly as the menu does.
-	console = DotConsoleKit.build(self, settings.settings, settings.menu)
-	# The HUD in the theme the player picks in the menu, and at their HUD size, live: the menu
-	# sets the theme on the root (every Label under it takes the theme's text colour,
-	# outlined) and scales it. Pass a Theme as the second argument for your game's accent
-	# (dot-ui's DotHudPiece colours `highlight` and `plate_edge`). By name, because a game
-	# delivered to an older client shell finds a dot-menu without it.
-	if settings.menu.has_method(&"follow_hud"):
-		settings.menu.call(&"follow_hud", _hud_root, null)
-
-	var board := settings.menu.scoreboard
 	board.title_text = "Coin Grab"
 	board.columns = [
 		{"key": &"name", "title": "Player", "width": 3.0},
@@ -143,37 +159,14 @@ func _build_menu(offline: bool) -> void:
 		{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
 	]
 	board.sort_by = &"coins"
-	if not offline and link != null:
-		# The server's roster: names, pings, time connected, and the coins the module adds.
-		board.feed_from(link)
-	else:
-		board.source = func() -> Dictionary:
-			var rows: Array = []
-			for who: TplGame.Player in game.players.values():
-				rows.append({"id": who.id, "name": who.name, "coins": who.score, "you": who.id == local_id})
-			return {"server": {"name": "Coin Grab", "game": "offline"}, "players": rows}
-	_build_maps(offline)
 
 
-## M: the arenas (tpl_arenas.gd), dot-menu's map menu.
-##
-## [b]Solo the choice is the change[/b], made here at once. [b]Connected, the server decides[/b]:
-## the menu asks it with `/mapmenu`, the server answers with its list and whether this player
-## holds the permission its owner named (`sv_map_menu_flag`, staff by default), and changes the
-## arena for everybody or, for anybody else, starts a vote for it (tpl_module.gd). By name,
-## because a client shell older than the map menu still runs the game without it.
-func _build_maps(offline: bool) -> void:
-	if not settings.has_method(&"use_maps"):
-		return
-	var maps: Variant = settings.call(&"use_maps",
-		func() -> Array: return TplArenas.rows(game.arena["id"]),
-		func(id: StringName) -> DotResult: return game.change_arena(id))
-	if maps is Object:
-		(maps as Object).set(&"title", "Change arena")
-		(maps as Object).set(&"noun", "arenas")
-		# Played offline beside a link (`--offline`): there is no server to ask.
-		if offline:
-			(maps as Object).set(&"link_service", &"")
+## The board offline, from this client's own world.
+func board_snapshot() -> Dictionary:
+	var rows: Array = []
+	for who: TplGame.Player in game.players.values():
+		rows.append({"id": who.id, "name": who.name, "coins": who.score, "you": who.id == local_id})
+	return {"server": {"name": "Coin Grab", "game": "offline"}, "players": rows}
 
 
 ## The chat box: Y opens it, Enter sends, Escape closes.
@@ -307,12 +300,9 @@ func _process(_delta: float) -> void:
 
 ## Where the player wants to go, length 0..1: keys, or a finger (or a held mouse button).
 func _intent() -> Vector2:
-	# Typing is not steering. Keys are polled, and a focused chat line does not stop that:
-	# without this, typing "sad" walks the player down and left.
-	if chat != null and chat.is_open():
-		return Vector2.ZERO
-	# Nor while the cover is up: the player cannot see the arena they would be steering in.
-	if gate != null and not gate.is_open():
+	# Typing is not steering (keys are polled, and a focused chat line does not stop that:
+	# typing "sad" walked the player down and left), nor is a menu, nor is the cover up.
+	if platform.is_input_blocked():
 		return Vector2.ZERO
 	if steer.is_valid():
 		return steer.call()
@@ -332,14 +322,6 @@ func _held(key: Key, other: Key) -> float:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Tab, held: the scoreboard, up while the key is down.
-	var key := event as InputEventKey
-	if key != null and key.physical_keycode == KEY_TAB and not key.echo and settings != null and settings.menu != null:
-		if key.pressed:
-			settings.menu.scoreboard.open()
-		else:
-			settings.menu.scoreboard.close()
-		return
 	if event is InputEventScreenTouch:
 		_touching = (event as InputEventScreenTouch).pressed
 		_touch_at = (event as InputEventScreenTouch).position

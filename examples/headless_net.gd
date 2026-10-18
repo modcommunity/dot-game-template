@@ -240,7 +240,7 @@ func _test_chat() -> void:
 	check(not _shown(chat, "spam spam"), "a line from somebody this player muted is not drawn")
 	mutes.set_muted({"name": "Mallory"}, false)
 	mutes.path = kept_path
-	var console: DotConsoleController = _client.get("console")
+	var console: DotConsoleController = (_client.get("platform") as DotGameClient).console as DotConsoleController
 	check(console != null and console.all_names().has("sm"), "the console has `sm` too")
 
 	# Typing is not steering: a player pressing right while the box is open moves nowhere.
