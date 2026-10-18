@@ -107,6 +107,8 @@ Run the last line twice for two players. After changing your game, run `./server
 
 **Coins worth more, players faster.** The numbers are constants at the top of `game/tpl_game.gd`: `COIN_VALUE`, `PLAYER_SPEED`, `PLAYER_RADIUS`. They are used by the server and by the client's prediction alike, which is the point: the server and the client run the same function to move a player (`TplGame.step`), so change it in one place.
 
+**Make the player wait for something.** `_ready` in `game/tpl_client.gd` creates a `DotLoadGate`, dot-core's loading cover (it needs dot-core API level 10, which `package.sh` writes into `requires.json` for you). It is closed until the player has joined and lifts by itself, so the player never sees an empty arena or steers before the server has placed them. This is the one place you add your own holds: `gate.hold(&"map", "Loading the map")` when you start building something, `gate.release(&"map")` when it is built (hold again on each map change), `gate.require(&"reason", func() -> bool: return ready, "text")` for a condition asked every frame, and `gate.freeze(body)` to stop a body until the cover lifts. A 3D game leaves `require_camera` at its default, so the cover also waits for the first camera; Coin Grab is 2D and turns it off.
+
 **A new arena.** Add a row to `LIST` in `game/tpl_arenas.gd`: an id, a name, a size no bigger than `TplGame.ARENA`, a coin count and a floor colour. It is in the M menu and on the server's vote with nothing else to change. An arena with walls or obstacles in it is where `TplGame.step` grows them, and stays pure: give it the arena, never anything one machine knows and another does not.
 
 **Something new the server tells players** — say, a line when somebody takes a coin:

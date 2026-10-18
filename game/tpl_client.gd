@@ -39,6 +39,10 @@ var net: DotNetManager = null
 ## Which player is this client's. Offline it is always 1.
 var local_id: int = 0
 
+## The loading cover. Closed until the local player exists, so nobody sees an empty arena
+## or steers before the server has placed them. See [method _ready].
+var gate: DotLoadGate = null
+
 var _hud: Label = null
 var _hud_root: Control = null
 
@@ -79,6 +83,14 @@ func _ready() -> void:
 	_hud_root.add_child(_hud)
 	_build_menu(offline)
 	_build_chat(offline)
+	# The loading cover (dot-core). Add your own holds here: `gate.hold(&"map", "Loading")`
+	# now and `gate.release(&"map")` when it is built. The gate also covers the first
+	# frames' shader compiles. Nothing is held at first except this requirement, which is
+	# asked every frame and met at once offline. No Camera3D in a 2D game, so none to wait for.
+	gate = DotLoadGate.new()
+	gate.require_camera = false
+	add_child(gate)
+	gate.require(&"spawned", func() -> bool: return game.player(local_id) != null, "Joining")
 	if offline:
 		game.start()
 		local_id = 1
@@ -298,6 +310,9 @@ func _intent() -> Vector2:
 	# Typing is not steering. Keys are polled, and a focused chat line does not stop that:
 	# without this, typing "sad" walks the player down and left.
 	if chat != null and chat.is_open():
+		return Vector2.ZERO
+	# Nor while the cover is up: the player cannot see the arena they would be steering in.
+	if gate != null and not gate.is_open():
 		return Vector2.ZERO
 	if steer.is_valid():
 		return steer.call()
