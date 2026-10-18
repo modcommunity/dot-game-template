@@ -77,6 +77,8 @@ func _build_map_menu() -> void:
 	var world := game as TplGame
 	var source := DotVoteListSource.new()
 	source.label = "arenas"
+	# LIST and not TplArenas.rows(): a server never follows the Workshop (tpl_workshop.gd), and
+	# an arena id is the wire, so a ballot may only name arenas every client has.
 	for arena: Dictionary in TplArenas.LIST:
 		var choice := DotVoteChoice.of(arena["id"], arena["name"])
 		choice.description = arena["about"]

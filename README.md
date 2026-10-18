@@ -19,6 +19,7 @@ Small as it is, it is the whole shape of a platform game:
 | --- | --- |
 | `game/tpl_game.gd` | The rules and the state. Read this first. |
 | `game/tpl_arenas.gd` | The arenas, the game's maps, as data: size, coins, colour. |
+| `game/tpl_workshop.gd`, `provides.json` | Subscribed map packs in solo play: what the game accepts and the wiring. |
 | `game/tpl_client.gd` | What a player runs: input, drawing, the netcode on a client, the menu and scoreboard, and chat. |
 | `game/tpl_view.gd` | Draws the arena, the coins and the players. |
 | `game/tpl_server.gd` | The scene a dedicated server loads. |
@@ -52,7 +53,7 @@ That renames every `tpl_` file and every `Tpl` name to your prefix (`game/cr_gam
 
 ## 3. Get the addons
 
-The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, dot-console for the console, dot-chat for the self-mute list behind dot-ui's chat box, and dot-vote for the map menu and the vote on a server). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
+The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, dot-console for the console, dot-chat for the self-mute list behind dot-ui's chat box, dot-vote for the map menu and the vote on a server, and dot-map for subscribed map packs in solo). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
 
 ```bash
 git clone https://github.com/modcommunity/dot-ci ../dot-ci
@@ -110,6 +111,8 @@ Run the last line twice for two players. After changing your game, run `./server
 **Make the player wait for something.** The first thing `_ready` in `game/tpl_client.gd` does is add dot-game's `DotGameClient`, the platform layer every game client has: dot-core's loading cover (`platform.gate`, a `DotLoadGate`), then, from `platform.setup()`, the settings and Escape menu, the console, the HUD in the player's theme, Tab for the board, M for the map menu, and input held while the cover is up, a menu is open or chat is being typed (`platform.is_input_blocked()`). It needs dot-game API level 8 and dot-core API level 10, which `package.sh` writes into `requires.json` for you. The cover is closed until the player has joined and lifts by itself, so the player never sees an empty arena or steers before the server has placed them. Add your own holds on `platform.gate`: `gate.hold(&"map", "Loading the map")` when you start building something, `gate.release(&"map")` when it is built (hold again on each map change), `gate.require(&"reason", func() -> bool: return ready, "text")` for a condition asked every frame, and `gate.freeze(body)` to stop a body until the cover lifts. A 3D game leaves `platform.require_camera` at its default, so the cover also waits for the first camera, and leaves `platform.capture_pointer` on so the mouse turns the view; Coin Grab is 2D and turns both off. Every piece of `DotGameClient` can be switched off or replaced; dot-game's README lists them.
 
 **A new arena.** Add a row to `LIST` in `game/tpl_arenas.gd`: an id, a name, a size no bigger than `TplGame.ARENA`, a coin count and a floor colour. It is in the M menu and on the server's vote with nothing else to change. An arena with walls or obstacles in it is where `TplGame.step` grows them, and stays pure: give it the arena, never anything one machine knows and another does not.
+
+**Accepting Workshop content.** A player can subscribe to map packs on the site, and the next solo launch downloads and lists them. A game takes none until it says so: `provides.json` at the repository root has `accepts` (`"kinds": ["map"]` and the `map_kinds` you play, here `coin_arena`). `game/tpl_workshop.gd` is the whole wiring, about 80 lines: it follows dot-core's shared `DotContentIndex` through dot-map's `DotMapCatalogue.follow_content`, reads each accepted pack map and adds it to `TplArenas.workshop`, so M lists it as "Name [Pack]" and `change_arena` plays it like any arena. Because an arena here is a row of numbers, a pack's map entry points `scene` at a small JSON document (`{"id", "name", "size": [w, h], "coins", "floor": [r, g, b]}`, checked and refused with a reason in the log if it does not fit `TplGame.ARENA`); a game whose maps are scenes loads `map.scene_path` instead. Your own ids win over a pack's. **Solo only, on purpose**: the client follows the index only offline, and a server never does, so online lists none, and the vote keeps naming `TplArenas.LIST` (an arena id is the wire, and a player's subscription is not on the server). `examples/headless_workshop.tscn` checks the lot, and `tools/shot_workshop.tscn` renders a pack map. Rename `coin_arena` and the document format for your game; the rest copies as it is.
 
 **Something new the server tells players** — say, a line when somebody takes a coin:
 

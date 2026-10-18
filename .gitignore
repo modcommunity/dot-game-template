@@ -17,6 +17,7 @@
 /addons/dot_console
 /addons/dot_chat
 /addons/dot_vote
+/addons/dot_map
 
 # Where dot-ci's resolve-deps.sh clones the addons above, when you use it instead of
 # dot-bootstrap.

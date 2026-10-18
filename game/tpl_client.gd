@@ -4,6 +4,7 @@ const TplArenas := preload("tpl_arenas.gd")
 const TplBridge := preload("net/tpl_bridge.gd")
 const TplGame := preload("tpl_game.gd")
 const TplView := preload("tpl_view.gd")
+const TplWorkshop := preload("tpl_workshop.gd")
 
 const CHANNEL := "tpl.client"
 
@@ -48,6 +49,9 @@ var net: DotNetManager = null
 
 ## Which player is this client's. Offline it is always 1.
 var local_id: int = 0
+
+## Solo only: the subscribed map packs this client follows (null connected).
+var workshop: TplWorkshop = null
 
 ## dot-game's platform layer: the loading cover (its [code]gate[/code]), the menu, the
 ## console, the keys. See [method _ready].
@@ -113,6 +117,9 @@ func _ready() -> void:
 	DotLog.result(CHANNEL, "the menu and the console", platform.setup())
 	_dress_board()
 	if offline:
+		# Solo only: subscribed map packs join the M list as "Name [Pack]". A server never does.
+		workshop = TplWorkshop.new()
+		workshop.follow()
 		game.start()
 		local_id = 1
 		game.add_player(local_id, "You")

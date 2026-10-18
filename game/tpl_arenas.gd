@@ -30,20 +30,27 @@ const LIST: Array[Dictionary] = [
 ## What a game starts on.
 const DEFAULT := &"classic"
 
+## Subscribed pack maps (tpl_workshop.gd), same shape as a [constant LIST] row. Solo only: a
+## server never fills it, so online the arenas are LIST and nothing else. [method find] and
+## [method rows] read both, which is all it takes for M and [code]change_arena[/code] to play one.
+static var workshop: Dictionary = {}
+
 
 ## The arena called [param id], or an empty dictionary when there is none.
 static func find(id: StringName) -> Dictionary:
 	for arena: Dictionary in LIST:
 		if arena["id"] == id:
 			return arena
-	return {}
+	return workshop.get(id, {})
 
 
 ## The M menu's rows (dot-menu's `DotMenuMaps` and dot-vote's `DotVoteMapMenu` take the same
 ## shape), with [param current] marked.
 static func rows(current: StringName) -> Array:
 	var out: Array = []
-	for arena: Dictionary in LIST:
+	var all: Array = LIST.duplicate()
+	all.append_array(workshop.values())
+	for arena: Dictionary in all:
 		out.append({"id": String(arena["id"]), "name": arena["name"], "detail": arena["about"],
 			"current": arena["id"] == current})
 	return out
