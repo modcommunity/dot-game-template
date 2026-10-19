@@ -57,6 +57,9 @@ func _make_bridge() -> Node:
 func _game_load() -> DotResult:
 	add_command("tpl_status", _cmd_status, "Show the players, their scores and the coins")
 	_build_map_menu()
+	# "Still loading": a player behind their client's cover collects nothing (TplGame.collect).
+	# The player id is the session's userid, which is the roster's seat.
+	(game as TplGame).harm_gate = can_be_harmed
 	return DotResult.success(null)
 
 
@@ -142,6 +145,8 @@ func _build_map_menu() -> void:
 
 
 func _game_unload() -> void:
+	if game != null:
+		(game as TplGame).harm_gate = Callable()
 	if _on_left.is_valid() and server.client_disconnected.is_connected(_on_left):
 		server.client_disconnected.disconnect(_on_left)
 

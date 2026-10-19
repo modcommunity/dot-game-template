@@ -33,3 +33,6 @@ Thumbs.db
 
 # Editors
 .vscode/
+
+# tools/render_cover.sh output
+/screenshots/

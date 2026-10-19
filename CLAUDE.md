@@ -25,6 +25,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, then dot-game's, dot-net's a
 | `game/tpl_paths.gd` | `rebase()` / `rebase_onto()` for delivery |
 | `game/net/` | `tpl_bridge.gd` (the only file naming the game and dot-net), `tpl_link.gd` (the one `@rpc` node), `tpl_command.gd`, `tpl_event.gd`, `tpl_request.gd`, `tpl_player_net.gd` |
 | `examples/` | `headless_rules`, `headless_net`, `headless_pack`, `headless_workshop`, and `suite.gd` (sections and a CHECKS total) |
+| `tools/cover_server.tscn`, `tools/render_cover.sh` | a real client on a real server in a second process, rendered under the loading cover and just after it lifts (`screenshots/`, ignored) |
 | `tools/shot_workshop.tscn` | renders a solo pack map (`../../tools/screenshot.sh dot-game-template out.png --wait 6 --scene res://tools/shot_workshop.tscn`) |
 | `tools/check.sh`, `tools/rename.sh` | everything, including the rename test; the rename a developer runs first |
 | `.gitignore` | the dependency manifest: every `/addons/<name>` line is an addon dot-bootstrap and dot-ci link |
@@ -55,6 +56,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - Every arena fits inside `TplGame.ARENA`, the range positions are sent in; arena ids are the wire (the ARENA event names one). The server sends ARENA before COINS, on admit and on every change. [design](docs/design.md#arenas-and-the-m-menu)
 - M is dot-menu's `use_maps` on the client and dot-vote's map menu on the server; who may change directly is `sv_map_menu_flag` (`generic`, staff, by default), everybody else gets a vote. Change the arena only through `TplGame.change_arena`, which the menu, the vote and solo all call. [design](docs/design.md#arenas-and-the-m-menu)
 - **Workshop maps are solo only.** The client calls `TplWorkshop.follow()` offline; a server never does, so the vote and the online M list stay `TplArenas.LIST` (ids are the wire). `TplWorkshop.accepted()` equals `provides.json`'s `map_kinds`; `headless_workshop` compares them.
+- **Still loading.** `TplGame.collect` asks `can_be_harmed(player_id)` first, the one choke point; the module assigns `harm_gate = can_be_harmed` on a server only (offline nobody loads). Anything new that hurts or takes from a player asks the same, and `headless_net` fails if `collect` stops asking. The client must not replace `platform.gate.cover` without freeing the stock one (it does not).
 - RPC methods are named `_rpc_*`, never a Node virtual. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - The HUD is a full-rect root Control the menu themes and scales (`settings.menu.follow_hud(root, accent)`, by name); put everything the HUD draws under it, and give your accent as a Theme rather than colouring Labels by hand.
 - Commit before trusting dot-server-deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)

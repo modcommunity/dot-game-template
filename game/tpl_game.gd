@@ -103,6 +103,11 @@ var size: Vector2 = arena["size"]
 
 var collected: int = 0
 
+## `func(player_id: int) -> bool`: whether that player may be affected now. The module assigns
+## dot-game's `can_be_harmed` on a server and leaves it unset everywhere else (offline nobody
+## is behind a cover). See [method can_be_harmed].
+var harm_gate: Callable = Callable()
+
 var _rng := RandomNumberGenerator.new()
 
 
@@ -198,6 +203,12 @@ func move(who: Player, delta: float) -> void:
 func collect(who: Player) -> int:
 	if not authoritative:
 		return -1
+	# THE CHOKE POINT: the one place this game does anything to the world on a player's behalf.
+	# Add the same line wherever YOUR hazards or rewards act (damage, elimination, a fall, a
+	# tackle). A player behind their loading cover cannot see or steer, so nothing may happen to
+	# them or be taken by them; see README "Add your own hazards".
+	if not can_be_harmed(who.id):
+		return -1
 	for i in range(coins.size()):
 		if who.position.distance_to(coins[i]) > PLAYER_RADIUS + COIN_RADIUS:
 			continue
@@ -208,6 +219,13 @@ func collect(who: Player) -> int:
 		scored.emit(who.id, who.score)
 		return i
 	return -1
+
+
+## Whether [param player_id] is in play: false while their client is behind its loading cover
+## (dot-game's "still loading", asked of the module through [member harm_gate]). True for anyone
+## the gate does not know: offline, and a bot, which never loads.
+func can_be_harmed(player_id: int) -> bool:
+	return not harm_gate.is_valid() or bool(harm_gate.call(player_id))
 
 
 ## One tick for everybody, offline. On a server the netcode runs [method move] and

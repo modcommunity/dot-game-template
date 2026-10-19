@@ -27,7 +27,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 42
+	checks = 47
 	_run.call_deferred()
 
 
@@ -39,6 +39,7 @@ func _run() -> void:
 	if await _boot() and await _test_join():
 		await _test_moving()
 		await _test_a_coin()
+		await _test_still_loading()
 		await _test_chat()
 		await _test_map_menu()
 		await _test_drawn_through_a_slip()
@@ -205,6 +206,35 @@ func _test_a_coin() -> void:
 			return bool(r.get("you", false)) and int(r.get("coins", 0)) > 0 and int(r.get("seconds", -1)) >= 0))
 	check(arrived, "Tab shows the server's board: this player, their coins and their time (%s)" % str(menu.scoreboard.rows()))
 	menu.scoreboard.close()
+	done()
+
+
+## dot-game's "still loading", over the real socket: a player the server holds as behind their
+## cover collects nothing, even standing on a coin, and collects again once the client's
+## `game.cover` report (the kind DotGameClient sends when its gate opens) lifts it.
+func _test_still_loading() -> void:
+	section("a player behind their loading cover collects nothing")
+	var module := _server.modules.get_module("tpl") as DotGameModule
+	var world := _server_game()
+	var who: Variant = _server_player()
+	check(module.can_be_harmed(who.id), "settled in, the player is in play")
+
+	# The server's own doing, as on a map change: only the server starts a loading state.
+	module.mark_reloading()
+	check(module.is_loading(who.id), "the server holds the player as loading")
+	var score_before: int = who.score
+	var coin_before: Vector2 = world.coins[0]
+	who.position = coin_before
+	await _settle(15)
+	check(who.score == score_before and world.coins[0] == coin_before,
+		"standing on a coin collects nothing (%d, was %d)" % [who.score, score_before])
+
+	# The client says its cover lifted, as DotGameClient does when the gate opens.
+	var sent := DotGameClient.report_cover(_link, false)
+	var lifted := await _until(func() -> bool: return not module.is_loading(who.id))
+	check(sent and lifted, "the client's report lifts it")
+	check(await _until(func() -> bool: return who.score > score_before),
+		"and the same coin is then collected (%d)" % who.score)
 	done()
 
 
