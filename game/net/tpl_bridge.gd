@@ -89,9 +89,13 @@ func attach(p_game: TplGame, p_net: DotNetManager) -> DotResult:
 ## Puts the link under the node named `Server` on this end. See [TplLink].
 func open_link(parent: Node) -> void:
 	link = TplLink.new()
-	link.name = TplLink.NODE_NAME
 	link.bridge = self
-	parent.add_child(link)
+	# Not parent.add_child: the link has to sit under `Server` (RPCs route by path) but must
+	# die with this bridge. A bare add_child left a second link after every module reload, and
+	# Godot renamed the live one `@Node@n`, so RPCs to real clients were silently lost.
+	# DotGameLink frees it with the bridge, and without remove_child, which errors when the
+	# whole server tree is torn down.
+	DotGameLink.attach(link, parent, self, TplLink.NODE_NAME)
 
 
 ## Every byte dot-net sends leaves here. Snapshots are its only unreliable traffic.

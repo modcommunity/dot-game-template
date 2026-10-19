@@ -18,6 +18,7 @@ const CLIENT_SCENE := "res://scenes/tpl_client.tscn"
 const TplBridge := preload("res://game/net/tpl_bridge.gd")
 const TplEvent := preload("res://game/net/tpl_event.gd")
 const TplGame := preload("res://game/tpl_game.gd")
+const TplLink := preload("res://game/net/tpl_link.gd")
 const TplRequest := preload("res://game/net/tpl_request.gd")
 
 var _server: DotServer = null
@@ -27,7 +28,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 47
+	checks = 52
 	_run.call_deferred()
 
 
@@ -36,7 +37,10 @@ func _run() -> void:
 	DotPaths.remove_tree(SERVER_DIR)
 	_test_kinds_fit()
 	await _test_map_menu_solo()
-	if await _boot() and await _test_join():
+	var booted := await _boot()
+	if booted:
+		await _test_a_module_reload()
+	if booted and await _test_join():
 		await _test_moving()
 		await _test_a_coin()
 		await _test_still_loading()
@@ -394,6 +398,26 @@ func _test_drawn_through_a_slip() -> void:
 
 
 ## Whether any row of the chat box's history has [param text] in it.
+## A module reload must leave ONE link under the server, still named for the client's route.
+## Two used to be left, the live one renamed `@Node@n`, and every RPC to a real client was lost
+## without an error. The proof is the next section: a client joins the reloaded server, and
+## signing on is server events over the socket. Before any client, because a reload mid-session
+## leaves the new bridge not knowing who is seated, which is a different matter.
+func _test_a_module_reload() -> void:
+	section("a module reload leaves one live link")
+	for _i in range(2):
+		check(_server.modules.unload_module("tpl").ok, "the module unloads")
+		check((await _server.modules.load_module(MODULE)).ok, "and loads again")
+	await _settle(5)
+	var links := 0
+	for child in _server.get_children():
+		if child.get_script() == TplLink:
+			links += 1
+	check(links == 1 and _server.has_node(NodePath(String(TplLink.NODE_NAME))),
+		"exactly one link, under the name the client routes to (%d)" % links)
+	done()
+
+
 func _shown(chat: DotChatWindow, text: String) -> bool:
 	for row: Variant in chat.history():
 		for part: Variant in row:
