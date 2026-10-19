@@ -28,7 +28,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 52
+	checks = 61
 	_run.call_deferred()
 
 
@@ -291,7 +291,8 @@ func _test_chat() -> void:
 
 
 ## M on a server: a player without the owner's flag is offered a vote and the vote changes the
-## arena; with the flag (here, the flag emptied so everybody holds it) the choice is the change.
+## arena; with the flag (here `anyone`, so everybody holds it) the choice is the change. Alone on the
+## server, sv_map_menu_alone (1 by default) makes it the change too.
 func _test_map_menu() -> void:
 	section("M: the map menu on a server")
 	var module: Node = _server.modules.get_module("tpl")
@@ -299,33 +300,86 @@ func _test_map_menu() -> void:
 	check(maps != null and maps.is_online(), "M is wired, and connected it asks the server")
 	maps.open()
 	check(await _until(func() -> bool: return maps.last_offer.has("maps")), "the server answers with its arenas")
+	# One human on the server: sv_map_menu_alone (1 by default) lets the only player change the map
+	# directly, as there is nobody to ask. This is the lone client of this suite.
 	var offer := maps.last_offer
+	check(bool(offer.get("allowed", false)) or not bool(offer.get("vote", false)),
+		"alone, with sv_map_menu_alone 1, the list is offered as a change, not a vote (%s)" % str(maps.describe()["offer"]))
+	var game: Node = _client.get("game")
+	maps.call(&"_chosen", &"pocket")
+	check(await _until(func() -> bool: return _server_game().get("arena")["id"] == &"pocket" and game.get("arena")["id"] == &"pocket"),
+		"alone, the choice is the change, with no vote (%s)" % maps.last_said)
+	check(not (module.get("director") as DotVoteDirector).is_voting(), "and no ballot opened")
+
+	# sv_map_menu_alone 0 turns that off: the lone player is told a change needs a vote of the
+	# players here, and no ballot opens (dot-vote's minimum is two humans).
+	var alone_cvar := _server.console.find_cvar("sv_map_menu_alone")
+	alone_cvar.force_set("0")
+	maps.last_said = ""
+	maps.call(&"_chosen", &"gold_rush")
+	check(await _until(func() -> bool: return "only one" in maps.last_said), "with sv_map_menu_alone 0, alone, there is no change (%s)" % maps.last_said)
+	check(not (module.get("director") as DotVoteDirector).is_voting() and _server_game().get("arena")["id"] == &"pocket",
+		"and no ballot, and still Pocket")
+	alone_cvar.force_set("1")
+
+	# A second human makes it a vote again: Bob signs on over a second connection, on a
+	# multiplayer API of his own (RPCs route by node path, so he cannot share Ada's tree).
+	var bob_side := Node.new()
+	bob_side.name = "BobSide"
+	add_child(bob_side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), bob_side.get_path())
+	var bob := DotClientLink.new()
+	bob.name = "Server"
+	bob.player_name = "Bob"
+	bob_side.add_child(bob)
+	var bob_in := [false]
+	bob.spawned.connect(func() -> void: bob_in[0] = true)
+	await bob.connect_to_server("127.0.0.1:%d" % PORT)
+	check(await _until(func() -> bool: return bob_in[0] and _server.playing_sessions().size() == 2), "a second player signs on and is playing")
+	var _lifted := DotGameClient.report_cover(bob, false)
+	maps.last_offer = {}
+	maps.open()
+	check(await _until(func() -> bool: return maps.last_offer.has("maps")), "the server answers again")
+	offer = maps.last_offer
 	check(not bool(offer.get("allowed", true)) and str(offer.get("flag", "")) == "generic" and bool(offer.get("vote", false))
 		and (offer["maps"] as Array).size() == 3,
-		"a player who is not staff gets the list as a vote, by sv_map_menu_flag's default (%s)" % str(maps.describe()["offer"]))
+		"with a second human here, a player who is not staff gets the list as a vote, by sv_map_menu_flag's default (%s)" % str(maps.describe()["offer"]))
 
 	# Rocking the vote waits two minutes into an arena by default; this suite has not got them.
 	(module.get("director") as DotVoteDirector).rules.rtv_delay_sec = 0.0
-	maps.call(&"_chosen", &"pocket")
-	check(await _until(func() -> bool: return "Nominated" in maps.last_said), "choosing one nominates it and rocks the vote (%s)" % maps.last_said)
-	check(await _until(func() -> bool: return (module.get("director") as DotVoteDirector).is_voting()), "and a ballot opens")
+	maps.last_said = ""
+	maps.call(&"_chosen", &"gold_rush")
+	check(await _until(func() -> bool: return "Nominated" in maps.last_said), "choosing one nominates it (%s)" % maps.last_said)
+	# With two players one asking is not most of them: the choice only nominated it. The ballot
+	# opens when both have typed !rtv.
+	check(not (module.get("director") as DotVoteDirector).is_voting(), "one player's choice is a nomination, not a ballot")
+	bob.send_chat("!rtv")
+	_link.send_chat("!rtv")
+	check(await _until(func() -> bool: return (module.get("director") as DotVoteDirector).is_voting()), "and a ballot opens when both players ask")
 	# The ballot is in chat: "Type !vote and a number: 1. Pocket ...". Nominated, Pocket is first.
+	# Chat is rate limited per player, so each waits a moment after the !rtv it just sent.
+	await get_tree().create_timer(3.0).timeout
+	bob.send_chat("!vote 1")
 	_link.send_chat("!vote 1")
-	var game: Node = _client.get("game")
-	check(await _until(func() -> bool: return _server_game().get("arena")["id"] == &"pocket" and game.get("arena")["id"] == &"pocket"),
-		"the vote's winner is played: the server and the client are on Pocket")
-	check(await _until(func() -> bool: return (game.get("coins") as Array).size() == 5 and _client_player().position.x < 760.0),
-		"with Pocket's coins, and the player inside its walls")
+	check(await _until(func() -> bool: return _server_game().get("arena")["id"] == &"gold_rush" and game.get("arena")["id"] == &"gold_rush"),
+		"the vote's winner is played: the server and the client are on Gold Rush (%s)" % str((module.get("director") as DotVoteDirector).describe_lines()))
+	check(await _until(func() -> bool: return (game.get("coins") as Array).size() == 24),
+		"with Gold Rush's coins")
 
-	_server.console.find_cvar("sv_map_menu_flag").force_set("")
+	# Chat and the commands in it are rate limited per player in real time, not frames.
+	await get_tree().create_timer(3.0).timeout
+	_server.console.find_cvar("sv_map_menu_flag").force_set("anyone")
 	maps.last_offer = {}
 	maps.open()
-	check(await _until(func() -> bool: return bool(maps.last_offer.get("allowed", false))), "with sv_map_menu_flag emptied, anybody may change it")
-	maps.call(&"_chosen", &"gold_rush")
-	check(await _until(func() -> bool: return game.get("arena")["id"] == &"gold_rush" and (game.get("coins") as Array).size() == 24),
+	check(await _until(func() -> bool: return bool(maps.last_offer.get("allowed", false))), "with sv_map_menu_flag anyone, anybody may change it")
+	maps.call(&"_chosen", &"pocket")
+	check(await _until(func() -> bool: return game.get("arena")["id"] == &"pocket" and (game.get("coins") as Array).size() == 5),
 		"and the choice is the change, for everybody (%s)" % maps.last_said)
 	_server.console.find_cvar("sv_map_menu_flag").force_set("generic")
 	maps.menu.close_all()
+	bob.disconnect_from_server("bye")
+	check(await _until(func() -> bool: return _server.playing_sessions().size() == 1), "the second player leaves")
+	bob_side.queue_free()
 	done()
 
 

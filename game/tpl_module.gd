@@ -67,7 +67,7 @@ func _game_load() -> DotResult:
 ##
 ## [b]Who may change the arena is the server owner's call[/b], through the `sv_map_menu_flag`
 ## cvar the map menu registers: `generic` by default, the flag every staff group from moderator
-## up holds; `changemap` for admins only; empty for anybody. A player without it is offered a
+## up holds; `changemap` for admins only; `anyone` for everybody; with one player on the server, `sv_map_menu_alone` (1) lets that player change it directly. A player without it is offered a
 ## vote instead: choosing an arena nominates it and rocks the vote (`!rtv`), and when enough
 ## players have, a ballot opens in chat for twenty seconds (`!vote 2`). The client half is [method
 ## DotMenu.use_maps] in tpl_client.gd, which asks the server with `/mapmenu`.
