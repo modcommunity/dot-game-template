@@ -32,6 +32,7 @@ Small as it is, it is the whole shape of a platform game:
 | `game/net/tpl_link.gd` | The four remote calls. |
 | `game.yml` | What a server runs when it installs your game. |
 | `examples/` | Three suites: the rules, a server and client over a real socket, and the pack rules. |
+| `export_presets.example.cfg` | A Web export preset. Copy it to `export_presets.cfg` (the editor rewrites that file, so it is gitignored) before exporting. Keep `cfg/*` in `include_filter`: Godot drops `.yml` from an export, and the addons' defaults in `cfg/addons/` go with it. dot-ci fails a repository without it. |
 | `tools/check.sh`, `tools/rename.sh` | The check to run before every push, and the rename. |
 
 ## 2. Make it yours
