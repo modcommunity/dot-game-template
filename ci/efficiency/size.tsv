@@ -1,0 +1,4 @@
+# size
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/headless_net.gd::_test_map_menu	100
+examples/headless_rules.gd::_ready	104
