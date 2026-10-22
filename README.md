@@ -4,6 +4,31 @@ Start a multiplayer game for the TMC platform from here. This repository is a sm
 
 It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself runs anywhere Godot does).
 
+## First 10 minutes
+
+1. Get the template and the addons: clone this repository, then `../dot-ci/scripts/resolve-deps.sh .` (section 3).
+2. `godot --headless --path . --import`, then `godot --path .` to play Coin Grab offline (section 4).
+3. `tools/check.sh` parses every script and runs every suite; it must pass before you change anything.
+4. Rename it to your game with `tools/rename.sh` (section 2), then change one real thing (section 6).
+5. Run it on a local server (section 5), then publish it (section 8).
+
+## Settings, and the commands your game gets
+
+Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addons/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addons/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](../dot-core/docs/addon-config.md).
+
+This template ships `tools/check.sh`. A finished game also has a `game.sh` wrapping the same steps:
+
+`./game.sh` is the one entry point every game repository has (copy it from the reference game, `game-arena`):
+
+| Command | Does |
+| --- | --- |
+| `./game.sh play` | play offline in a window (the default) |
+| `./game.sh online` | a local server plus the browser client; prints the link (`online down` stops it) |
+| `./game.sh server` | a dedicated server only (`server check` boots, loads the game and exits 0) |
+| `./game.sh test` | parse every script, then run every suite (`test NAME` runs one) |
+| `./game.sh shot` | save a screenshot to `screenshots/` |
+| `./game.sh soak [MAP] [MIN]` | a bot soak run, where the game has `tools/soak.tscn` |
+
 ## 1. What you get
 
 A 2D arena. Each player is a coloured disc that moves with WASD, the arrow keys or a finger; coins lie around the arena and reappear somewhere else when somebody takes one; the scores are in the corner. **Esc** opens the settings menu and **Tab**, held, shows the scoreboard: everybody's coins, how long they have been on the server and their ping. **M** lists the arenas (the game's maps) and changes to the one you pick; on a server, staff change it and everybody else starts a vote. **Y** opens chat, which also shows what the server says (a vote, somebody joining, an admin). The key under Esc opens the console, where every setting is a command of its own name — `net_stat 2` draws what the connection is doing. `sm` in the console, or `!sm` in chat, is your own mute list: `sm` lists who is here, `sm 2` mutes the second of them for you alone, and nobody is told.
