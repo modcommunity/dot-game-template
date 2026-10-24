@@ -55,6 +55,10 @@ func _make_bridge() -> Node:
 
 
 func _game_load() -> DotResult:
+	var binder := (game as TplGame).config_binder
+	if binder != null:
+		binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+		binder.bind_commands(add_command)
 	add_command("tpl_status", _cmd_status, "Show the players, their scores and the coins")
 	_build_map_menu()
 	# "Still loading": a player behind their client's cover collects nothing (TplGame.collect).

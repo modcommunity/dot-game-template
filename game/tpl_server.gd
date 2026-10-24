@@ -14,5 +14,12 @@ func _ready() -> void:
 	game.name = "World"
 	game.authoritative = true
 	game.register_service = true
+	# Layered config; strict on a dedicated server, so a typo in cfg/ stops the boot.
+	var binder := DotGameConfigBinder.create(game.config, "tpl", "tpl", "user://cfg/tpl.json")
+	var loaded := binder.load_layers()
+	if not loaded.ok:
+		DotGameConfigBinder.fail_boot(get_tree(), loaded)
+		return
+	game.config_binder = binder
 	add_child(game)
 	game.start()

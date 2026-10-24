@@ -13,6 +13,7 @@ extends Node
 ## `examples/headless_rules.tscn` can run all of it.
 
 const TplArenas := preload("tpl_arenas.gd")
+const TplConfig := preload("tpl_config.gd")
 
 ## Where the server's copy publishes itself, for [code]tpl_module.gd[/code] to find.
 const SERVICE := &"tpl_game"
@@ -27,9 +28,6 @@ const PLAYER_RADIUS := 22.0
 const PLAYER_SPEED := 320.0
 
 const COIN_RADIUS := 11.0
-
-## What one coin is worth. The README's first exercise.
-const COIN_VALUE := 1
 
 ## A coin was collected and has reappeared somewhere else. Server side.
 signal coin_moved(index: int, position: Vector2)
@@ -84,6 +82,12 @@ class Player:
 
 
 ## Whether this copy decides things. See the class note.
+## The tunables (coin_value, extra_coins); the server scene replaces it with the layered one.
+var config := TplConfig.new()
+
+## Binds [member config] to cvars; set by the server scene.
+var config_binder: DotGameConfigBinder = null
+
 var authoritative: bool = true
 
 ## Whether to publish under [constant SERVICE]. Only the server's copy does, or two copies in
@@ -128,7 +132,7 @@ func start(rng_seed: int = 0) -> void:
 		_rng.randomize()
 	coins.clear()
 	collected = 0
-	for _i in range(int(arena["coins"])):
+	for _i in range(int(arena["coins"]) + config.extra_coins):
 		coins.append(_free_spot())
 
 
@@ -212,7 +216,7 @@ func collect(who: Player) -> int:
 	for i in range(coins.size()):
 		if who.position.distance_to(coins[i]) > PLAYER_RADIUS + COIN_RADIUS:
 			continue
-		who.score += COIN_VALUE
+		who.score += config.coin_value
 		collected += 1
 		coins[i] = _free_spot()
 		coin_moved.emit(i, coins[i])
