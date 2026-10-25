@@ -127,10 +127,12 @@ python3 -c 'import json; p="client/content.json"; d=json.load(open(p)); d["trust
 
 python3 -m http.server 8000 --bind 127.0.0.1 --directory dist     # one terminal
 ./server --game crate-rush --port 27015 --content-url http://127.0.0.1:8000   # another
-godot --path . -- --connect 127.0.0.1:27015                        # a third: the client
+godot --path . -- --connect 127.0.0.1:27015                        # a third, in the dot-server-deploy checkout too: the client
 ```
 
 The `pack.json` lists what goes in the pack (your game's folders and files), so anything else in the folder, such as your own scratch scripts, stays out; add a folder when your game gains one (`props`, `audio`). Without a `pack.json` the whole folder is published. The pack is called `you/crate-rush`: `you` is the placeholder owner in `game.yml`'s `content_id`, which the site replaces with your username on publish (section 8) and is fine on your machine.
+
+The client is dot-server-deploy's shell, which is why that last line runs in the dot-server-deploy checkout: it reads `--connect`, downloads your pack from the server, mounts it and joins (`player joined` in the server log). Running it from your own game's folder starts your game's own menu, which ignores `--connect` and never joins. `./server pack` signs with the key id `local` that `setup.sh` trusts in `data/content.json`; the `client/content.json` edit above is for the shell.
 
 Run the last line twice for two players. After changing your game, run `./server pack crate-rush --source ../crate-rush` again and restart the server.
 
