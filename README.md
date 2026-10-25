@@ -166,6 +166,10 @@ The rule for anything on the wire is **append only**: add kinds at the end of th
 
 Then run the checks (section 7) and play it (sections 4 and 5).
 
+### Culling for your level (optional)
+
+A big level draws every room in the frustum. dot-map can bake occluders from your walls and floors and give each door a portal that hides the room behind it while shut: [add culling to your level in 5 minutes](../dot-map/docs/culling.md). Off unless you add it; Coin Grab does not use it.
+
 ## 7. The pack rules, and what the check catches
 
 A delivered game is mounted inside somebody else's client at `res://dot_cloud/<owner>/<repo>/<version>/`, not at `res://`. Two things that work perfectly in your project break there, silently:
