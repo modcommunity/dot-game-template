@@ -14,7 +14,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## Settings, and the commands your game gets
 
-Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addons/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addons/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](../dot-core/docs/addon-config.md).
+Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addon/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addon/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](../dot-core/docs/addon-config.md).
 
 This template ships `tools/check.sh`. A finished game also has a `game.sh` wrapping the same steps:
 
@@ -57,7 +57,7 @@ Small as it is, it is the whole shape of a platform game:
 | `game/net/tpl_link.gd` | The four remote calls. |
 | `game.yml` | What a server runs when it installs your game. |
 | `examples/` | Three suites: the rules, a server and client over a real socket, and the pack rules. |
-| `export_presets.example.cfg` | A Web export preset. Copy it to `export_presets.cfg` (the editor rewrites that file, so it is gitignored) before exporting. Keep `cfg/*` in `include_filter`: Godot drops `.yml` from an export, and the addons' defaults in `cfg/addons/` go with it. dot-ci fails a repository without it. |
+| `export_presets.example.cfg` | A Web export preset. Copy it to `export_presets.cfg` (the editor rewrites that file, so it is gitignored) before exporting. Keep `cfg/*` in `include_filter`: Godot drops `.yml` from an export, and the addons' defaults in `cfg/addon/` go with it. dot-ci fails a repository without it. |
 | `tools/check.sh`, `tools/rename.sh` | The check to run before every push, and the rename. |
 
 ## 2. Make it yours
@@ -86,7 +86,9 @@ git clone https://github.com/modcommunity/dot-ci ../dot-ci
 ../dot-ci/scripts/resolve-deps.sh .
 ```
 
-That clones the addons into `.deps/` (ignored) and links them into `addons/`. It clones only what is missing, so to update them, delete `.deps/` and run it again. To use another addon, add its line to `.gitignore` and run it again; keep the list to what you use.
+That clones the addons into `.deps/` (ignored) and links them into `addons/`, **at the release tags in `addons.lock`**, not at the newest `main`. The lock holds the same tags as dot-server-deploy's own `addons.lock` (section 5), so the pack you build records the API levels the server you test it on has; a pack built against a newer `dot-net` than the server installs is refused with "needs dot-net API level 12 or newer; this server has level 11". `addons.lock` is written by `tools/sync-lock.sh` (it reads `../dot-server-deploy/addons.lock`, and the newest release tag for what that does not list); run it after you update dot-server-deploy, then delete `.deps/` and run `resolve-deps.sh` again. It clones only what is missing, so to update the addons, change the lock, delete `.deps/` and run it again. To use another addon, add its line to `.gitignore`, run `tools/sync-lock.sh`, and run `resolve-deps.sh`; keep the list to what you use. Delete `addons.lock` to follow `main` instead, and expect the version message above until the servers you run on are updated too.
+
+This template matches dot-server-deploy at the tag set in its `addons.lock` (dot-core v0.1.21, dot-net v0.1.19, dot-server v0.1.21, dot-game v0.1.27, dot-map v0.1.54, dot-menu v0.1.13, dot-ui v0.1.9, dot-vote v0.1.13 and the rest of that file).
 
 Working inside the whole family instead? [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap) clones every repository side by side and links every project's addons in one go (`./bootstrap.sh`), this one included.
 
@@ -106,14 +108,14 @@ The server is [dot-server-deploy](https://github.com/modcommunity/dot-server-dep
 ```bash
 git clone https://github.com/modcommunity/dot-server-deploy ../dot-server-deploy
 cd ../dot-server-deploy
-./setup.sh
+./setup.sh --no-games
 ```
 
-`setup.sh` fetches a verified Godot if you have none, links the addons, writes `./server`, and makes a content signing key for this machine (`keys/`). Then publish your game into it as a signed pack and start a server on it:
+`setup.sh` fetches a verified Godot if you have none, links the addons, writes `./server`, and makes a content signing key for this machine (`keys/`). **`--no-games` matters here**: without it `setup.sh` also imports and packs every game the platform ships (a long run, and a game that cannot be packed on your machine is reported and skipped), and `--no-games` builds none, so only yours is on this server. Then publish your game into it as a signed pack and start a server on it:
 
 ```bash
 mkdir -p content/crate-rush && cp ../crate-rush/game.yml content/crate-rush/
-echo '{"exclude_dirs": ["addons", "examples", "tools", ".deps", ".github"]}' > content/crate-rush/pack.json
+echo '{"include": ["game", "scenes", "game.yml", "provides.json", "icon.svg"]}' > content/crate-rush/pack.json
 ./server pack crate-rush --source ../crate-rush
 ./server check --game crate-rush          # boots, mounts it, loads it, exits 0
 ```
@@ -127,6 +129,8 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory dist     # one terminal
 ./server --game crate-rush --port 27015 --content-url http://127.0.0.1:8000   # another
 godot --path . -- --connect 127.0.0.1:27015                        # a third: the client
 ```
+
+The `pack.json` lists what goes in the pack (your game's folders and files), so anything else in the folder, such as your own scratch scripts, stays out; add a folder when your game gains one (`props`, `audio`). Without a `pack.json` the whole folder is published. The pack is called `you/crate-rush`: `you` is the placeholder owner in `game.yml`'s `content_id`, which the site replaces with your username on publish (section 8) and is fine on your machine.
 
 Run the last line twice for two players. After changing your game, run `./server pack crate-rush --source ../crate-rush` again and restart the server.
 
@@ -205,6 +209,26 @@ TMC_GAMES=alice/crate-rush ./server              # the newest version
 ```
 
 The server fetches the pack from its content origin (`content_urls` in `cfg/server.yml`, the platform's by default), checks its signature, writes your `game.yml` to `content/crate-rush/game.yml` with the right id and version stamped in, and starts it. Edit that file to change the player count or add cvars; it is never overwritten unless you pass `--refresh`. Who may change the arena from the M menu is the `sv_map_menu_flag` cvar: `generic` (moderators and up) by default, `changemap` for admins only, or empty for everybody; anybody without it gets a vote. At the console the game is `crate-rush` (`changelevel crate-rush`), and your module's commands are there (`cr_status`). Players join it like any other server — from the server browser if it is listed, or by address — and their client downloads your pack as they connect.
+
+### Threads and who is sent what
+
+Two groups of settings decide how much a busy server costs. All of them go in `cfg/server/server.yml` (the server's own file; restart to apply), and the first group is also live at the console and in dot-workbench's **Server threads** panel.
+
+```yaml
+# threads: the count, then the opt-ins (nothing is threaded until its own switch is on)
+sv_worker_threads: -1      # -1 cores less one (at most 8), 0 everything on the main thread; set it when several servers share a machine
+sv_threads_net: 1          # build each player's snapshot on the workers (not on the web)
+sv_threads_npc: 0          # NPC decisions and path searches, for brains that support it
+
+# relevance: what a player is sent
+net_interest_radius: 150   # metres; at most this far from a player is sent to them (0 keeps the game's own)
+net_far_every: 4           # anything farther than net_far_distance is sent in one snapshot of 4
+net_far_distance: 60       # metres; 0 is never far
+```
+
+`net_interest_radius` is a ceiling on the game's own radius (the smaller wins; 0 means no limit from you). `net_far_every` and `net_far_distance` replace the game's values when written. `sv_threads_npc` is read by no game yet. Zombie Zone's `zz_net_far_every` and `zz_net_far_distance` are the same two settings under the game's own names and keep working; where a game sets its own, the game's wins.
+
+Where the files live: the server's own settings are `cfg/server/server.yml`; an addon's are `cfg/server/addon/<addon>/<file>.yml` (singular `addon`, the folder is the addon name with `-` as `_`) and one game's `cfg/server/game/<game>/`. The workbench's Save for the thread cvars writes `cfg/server/addon/dot_server/threads/server.yml` and applies it at the next start. `cfg/server/addons/` (plural) and `cfg/addons/` are the old layout: read, with a warning, and not documented anywhere else. A name the server does not know is listed at boot as `unrecognised setting`, with the nearest known names (`did you mean net_interest_radius?`).
 
 ## 10. Versions: what "this game needs dot-net API level 2" means
 

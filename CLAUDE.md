@@ -27,6 +27,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, then dot-game's, dot-net's a
 | `examples/` | `headless_rules`, `headless_net`, `headless_pack`, `headless_workshop`, and `suite.gd` (sections and a CHECKS total) |
 | `tools/cover_server.tscn`, `tools/render_cover.sh` | a real client on a real server in a second process, rendered under the loading cover and just after it lifts (`screenshots/`, ignored) |
 | `tools/shot_workshop.tscn` | renders a solo pack map (`../../tools/screenshot.sh dot-game-template out.png --wait 6 --scene res://tools/shot_workshop.tscn`) |
+| `addons.lock`, `tools/sync-lock.sh` | the addon release tags the game builds against (resolve-deps.sh clones them); the same tags as dot-server-deploy's `addons.lock`, so a pack's `requires.json` levels never exceed what the server installs. Run `sync-lock.sh` after dot-server-deploy's lock moves |
 | `tools/check.sh`, `tools/rename.sh` | everything, including the rename test; the rename a developer runs first |
 | `.gitignore` | the dependency manifest: every `/addons/<name>` line is an addon dot-bootstrap and dot-ci link |
 
@@ -61,7 +62,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - The HUD is a full-rect root Control the menu themes and scales (`settings.menu.follow_hud(root, accent)`, by name); put everything the HUD draws under it, and give your accent as a Theme rather than colouring Labels by hand.
 - Commit before trusting dot-server-deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
 - `tools/rename.sh` leaves Markdown alone and refuses a repository name the site cannot use as a pack id; `tools/check.sh` must keep the survivor check. [design](docs/design.md#the-rename)
-- Every export preset keeps `cfg/*` in `include_filter` (`export_presets.example.cfg` has it; copy it to `export_presets.cfg`). Exports drop `.yml`, so without it the addons' `cfg/addons/*.yml` defaults vanish from a build and nothing errors. dot-ci's `check-export-filter.sh` fails a repository without it.
+- Every export preset keeps `cfg/*` in `include_filter` (`export_presets.example.cfg` has it; copy it to `export_presets.cfg`). Exports drop `.yml`, so without it the addons' `cfg/addon/*/*.yml` defaults vanish from a build and nothing errors. dot-ci's `check-export-filter.sh` fails a repository without it.
 - Add an addon only by adding its `/addons/<name>` line to `.gitignore` and using it; a pack is checked against the addons it names.
 - `project.godot` carries no comments: the editor drops them, and any key left at its default, the first time it saves the file, so the reasons live here. The renderer is `gl_compatibility` because the client shell a published game is mounted into is, a browser being one of its targets. Nothing in that file travels in a pack (not the renderer, the input map or the gravity), so anything the game depends on at runtime is set from code. `[importer_defaults]` keeps new textures at `detect_3d/compress_to=0`, so the editor never re-imports one VRAM-compressed on a first open and leaves the checkout dirty.
 
