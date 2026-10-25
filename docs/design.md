@@ -59,3 +59,7 @@ No `class_name`; every `res://` string naming the game's own files goes through 
 ## Running it locally against a server
 
 A locally published pack is not enough for a local client: the client fetches content from the server's `content_urls` (the platform's origin by default) and mounts only packs signed by a key in `client/content.json`. So the README's step 5 serves `dist/` with `python3 -m http.server`, passes `--content-url`, and adds this machine's key to the shell's trust. It uses plain `./setup.sh` in dot-server-deploy, which links every addon; **`--only-games` derives the addon list from the named games and is the wrong flag for this** ([dot-server-deploy's setup.md](../../dot-server-deploy/docs/setup.md#--only-games-and---skip-games)).
+
+## Map culling is opt in
+
+A converted map carries its precomputed visibility, and dot-game's `DotGameClient` can draw only what the camera could see: call `platform.attach_visibility(world, drawn)` after the map is built (`world` the `DotMapBspMesh`, `drawn` its `build_node()` tree) and `platform.detach_visibility()` when it goes. Nothing changes until a player or the game picks a mode: `vis_mode` is `off` by default, and `pvs`, `occluders` or `both` at the client console (`vis_mode both`), on the command line (`--vis_mode=both`) or from code (`platform.set_vis_mode("both")`). Leave it off for small open maps, where culling costs more than it saves; turn it on for large indoor maps. dot-game's [client-migration.md](../../dot-game/docs/client-migration.md) has the details.
