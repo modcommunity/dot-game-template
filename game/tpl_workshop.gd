@@ -6,20 +6,8 @@ const TplGame := preload("tpl_game.gd")
 const CHANNEL := "tpl.workshop"
 
 ## Subscribed map packs in SOLO play: the reference wiring a developer copies.
-##
-## [b]A pack's `map` entry names a JSON document in `scene`[/b], because this game's maps are
-## rows of numbers (tpl_arenas.gd), not scenes. The document is one arena:
-## [codeblock]
-## {"id": "bunker", "name": "Bunker", "about": "Optional line for the menu.",
-##  "size": [900, 500], "coins": 12, "floor": [0.2, 0.1, 0.1]}
-## [/codeblock]
-## `id` must equal the entry's id; `floor` is optional. The pack's entry says
-## `"map_kind": "coin_arena"`, the one kind [method accepted] lists and provides.json repeats.
-## A game whose maps are scenes loads `map.scene_path` instead and needs no document.
-##
-## [b]Online lists none[/b]: only the solo client calls [method follow], and it fills
-## [member TplArenas.workshop], which a server never does. Arena ids are the wire online, and a
-## player's pack is not on the server, so the vote and the server's M list stay the game's own.
+## A pack's `map` entry (`"map_kind": "coin_arena"`) names in `scene` a JSON arena: {"id": "bunker", "name": "Bunker",
+## "size": [900, 500], "coins": 12, "floor": [0.2, 0.1, 0.1]}, `id` matching, `floor` optional. Online lists none (ids are the wire).
 
 ## The map kinds this game takes: provides.json's `accepts.map_kinds`, which a test compares.
 static func accepted() -> PackedStringArray:

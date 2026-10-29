@@ -2,11 +2,9 @@ extends Node2D
 
 const TplGame := preload("tpl_game.gd")
 
-## Draws a [TplGame]: the arena, the coins, the players. Reads the game and changes nothing,
-## so it draws an offline game and a connected one the same way.
-##
-## Drawn in code rather than from art so the template ships no assets. Replace [method _draw]
-## with sprites when you have some -- and load them through TplPaths.rebase().
+## Draws a [TplGame]: the arena, the coins, the players. Reads the game and changes nothing.
+## Drawn in code so the template ships no assets; replace [method _draw] with sprites loaded
+## through TplPaths.rebase().
 
 var game: TplGame = null
 
@@ -67,15 +65,8 @@ func _draw() -> void:
 
 
 ## How far through its tick a frame drawn now is.
-##
-## [b]Connected, the clock's `render_alpha()`, not the engine's physics fraction.[/b] The
-## clock stretches and shrinks its ticks while it settles on the server, so now and then a
-## physics frame runs no tick, or two. Drawn at the engine's fraction, the frame after one
-## with none goes back over the step it just drew (the player stands still) and the frame
-## after one with two skips a step (it moves double). `render_alpha` keeps the drawing where
-## it was and takes the slip back over the next few ticks. Asked by name, so a client shell
-## with an older dot-net draws at the engine's fraction. Offline every physics frame is one
-## tick, and the engine's fraction is exact.
+## Connected, the clock's `render_alpha()`, not the engine's fraction: the clock stretches its ticks while settling, so a
+## physics frame can run none or two. Asked by name for older dot-net. Offline the engine's fraction is exact.
 func frame_alpha() -> float:
 	if render_clock != null and is_instance_valid(render_clock) and render_clock.has_method(&"render_alpha"):
 		return float(render_clock.call(&"render_alpha"))

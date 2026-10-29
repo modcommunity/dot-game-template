@@ -1,10 +1,8 @@
 extends DotNetInput
 
 ## One tick of a player's intent: the ONLY thing a client sends about itself.
-##
-## Clients send inputs, never state. A client that could send its position could send any
-## position; one that sends "I am pushing up-left" can only ever move as fast as the rules let
-## it, because the server runs the rules.
+## Clients send inputs, never state: one that says "pushing up-left" can only move as fast as
+## the rules let it, because the server runs the rules.
 
 ## Where they are trying to go, length 0..1.
 var move: Vector2 = Vector2.ZERO

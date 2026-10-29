@@ -1,11 +1,8 @@
 extends Node
 
-## Renders a solo pack map with the M menu open, for ~/tools/screenshot.sh (never --headless: that draws nothing):
-##
-##     screenshot.sh dot-game-template out.png --wait 6 --scene res://tools/shot_workshop.tscn
-##
-## A fixture pack stands in for the Workshop's: one document registered in the shared index as
-## solo before the client starts, so the client follows it exactly as a subscription would.
+## Renders a solo pack map with the M menu open, for screenshot.sh (never --headless):
+## `screenshot.sh dot-game-template out.png --wait 6 --scene res://tools/shot_workshop.tscn`.
+## A fixture pack registered in the shared index as solo stands in for the Workshop's.
 
 const DIR := "user://ws_shot/"
 

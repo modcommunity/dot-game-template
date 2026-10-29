@@ -1,16 +1,8 @@
 extends Node
 
-## The whole game: the rules and the state they act on. Everything else in this repository
-## either feeds it (the netcode, the keyboard) or draws it.
-##
-## [b]One class for every place the game runs.[/b] A dedicated server's copy has
-## [member authoritative] on and decides everything. A connected client's has it off: a mirror
-## the netcode writes into, which only moves its own player ahead of the server (prediction)
-## and never collects a coin. An offline client's has it on and nobody else in it. A separate
-## "single player" copy of the rules would be a second game to keep in step with this one.
-##
-## Nothing here needs a frame, a window or a physics server, which is why
-## `examples/headless_rules.tscn` can run all of it.
+## The whole game: the rules and the state they act on; everything else feeds or draws it.
+## [b]One class everywhere[/b]: a server's copy decides ([member authoritative]); a connected client's is a mirror that
+## only predicts its own player; an offline one is alone. Nothing needs a window, so `headless_rules.tscn` runs all of it.
 
 const TplArenas := preload("tpl_arenas.gd")
 const TplConfig := preload("tpl_config.gd")
@@ -54,16 +46,9 @@ class Player:
 	var drawn_from: Vector2 = Vector2(NAN, NAN)
 	var drawn_two_back: Vector2 = Vector2(NAN, NAN)
 
-	## Where to DRAW them on a frame [param alpha] of the way through their last tick.
-	##
-	## [b]A player this machine simulates moves once a tick, and the screen draws more often
-	## than that[/b] (60 ticks against a 144 Hz monitor): drawn where the tick left them, they
-	## stand still on most frames and jump on the rest. So they are drawn between where the
-	## last tick began and where it ended. [param alpha] is usually 0..1; a connected client's
-	## clock gives -1 to 2 for a moment after a physics frame that ran no tick, or two (see
-	## [code]tpl_view.gd[/code]'s [code]frame_alpha[/code]), and the frame is drawn on along the last step past 1
-	## and between the two ticks before below 0. A player never simulated here (somebody
-	## else's, on a client) is already smoothed by the netcode and is drawn where they are.
+	## Where to DRAW them, [param alpha] of the way through their last tick. A player simulated here moves once a tick
+	## but is drawn more often, so between the last tick's start and end; alpha outside 0..1 (a frame with no tick,
+	## or two) extends along the last step. Somebody else's player is already smoothed by the netcode.
 	func drawn_position(alpha: float) -> Vector2:
 		if not drawn_from.is_finite():
 			return position
@@ -181,12 +166,9 @@ func player(id: int) -> Player:
 	return players.get(id)
 
 
-## Where somebody at [param from] ends up after one tick of [param intent].
-##
-## [b]Static and pure, and that is the whole of client prediction.[/b] The owning client runs
-## it on the same input as the server, a few ticks ahead, and they agree. Anything that differs
-## between machines -- the clock, [code]randf()[/code], another player -- must never reach it.
-## The arena's [param walls] are the same on both: the server says which arena it is.
+## Where somebody at [param from] ends up after one tick of [param intent], within [param walls].
+## [b]Static and pure, and that is the whole of client prediction[/b]: the owning client runs it on the server's input.
+## Nothing that differs between machines (the clock, `randf()`, another player) may reach it.
 static func step(from: Vector2, intent: Vector2, delta: float, walls: Vector2 = ARENA) -> Vector2:
 	var moved := from + intent.limit_length(1.0) * PLAYER_SPEED * delta
 	var edge := Vector2(PLAYER_RADIUS, PLAYER_RADIUS)
@@ -207,10 +189,9 @@ func move(who: Player, delta: float) -> void:
 func collect(who: Player) -> int:
 	if not authoritative:
 		return -1
-	# THE CHOKE POINT: the one place this game does anything to the world on a player's behalf.
-	# Add the same line wherever YOUR hazards or rewards act (damage, elimination, a fall, a
-	# tackle). A player behind their loading cover cannot see or steer, so nothing may happen to
-	# them or be taken by them; see README "Add your own hazards".
+	# THE CHOKE POINT: the one place the game does anything to the world on a player's behalf.
+	# Add the same line wherever YOUR hazards or rewards act; a player behind their loading cover
+	# can neither be harmed nor take anything (README "Add your own hazards").
 	if not can_be_harmed(who.id):
 		return -1
 	for i in range(coins.size()):

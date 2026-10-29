@@ -1,17 +1,8 @@
 extends RefCounted
 
 ## Where this game's own files are, wherever this copy of it happens to live.
-##
-## [b]A delivered game does not live at res://.[/b] A published pack mounts at
-## [code]res://dot_cloud/<owner>/<repo>/<version>/[/code], so an absolute "res://..." naming one
-## of this game's files resolves against the HOST instead -- another game's file, or nothing.
-## A script knows where it is, though: its [code]resource_path[/code] is the mounted path. So
-## the root is this script's directory with [code]game/[/code] taken off, and every path hangs
-## off that. Built into a project, [method rebase] returns exactly what it was given.
-##
-## [b]Rebase where the path is DEFINED[/b] ([code]static var X := TplPaths.rebase("res://...")[/code]),
-## never at each use: the second is one new call site away from a file that does not load in a
-## delivered game and loads perfectly here. [code]tools/check.sh[/code] refuses the bare form.
+## A pack mounts at res://dot_cloud/<owner>/<repo>/<version>/, so an absolute "res://..." names the HOST's file; a script's
+## `resource_path` is the mounted path, hence [method rebase]. Rebase where a path is DEFINED, never at each use.
 
 const _SELF := preload("tpl_paths.gd")
 

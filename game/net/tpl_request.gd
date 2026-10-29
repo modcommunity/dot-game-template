@@ -1,11 +1,8 @@
 extends "tpl_event.gd"
 
-## Everything a client asks the server for: the same shape as [TplEvent], the other way.
-## Today that is one thing, READY -- "my scene is built, you may send me things now". Anything
-## sent before it would land on a node that does not exist yet. It carries wants, never state.
-##
-## A separate type because a message's direction is fixed per type, and that is what stops a
-## client sending another client an event.
+## Everything a client asks the server for: the shape of [TplEvent], the other way.
+## Today that is READY, "my scene is built, you may send me things now"; wants, never state.
+## A separate type because direction is fixed per type, which stops a client sending an event.
 
 const REQUEST := &"tpl.request"
 

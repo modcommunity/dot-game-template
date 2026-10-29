@@ -1,14 +1,8 @@
 extends "suite.gd"
 
-## A real dedicated server and a real client, in one process, over a real socket.
-##
-##     godot --headless --path . res://examples/headless_net.tscn
-##
-## A [DotServer] loads the module BY PATH, as a deployed one does; a [DotClientLink] (what the
-## client shell connects with) carries this game's client scene. Each side has its own
-## [MultiplayerAPI], so every RPC crosses the socket, and the client is steered through its
-## `steer` hook as a keyboard would steer it. It cannot see a PACK -- here the files are at
-## res:// -- which is dot-server-deploy's examples/template_client.tscn.
+## A real dedicated server and a real client in one process, over a real socket.
+## The module loads BY PATH as a deployed one does; each side has its own [MultiplayerAPI].
+## It cannot see a PACK (the files are at res://): that is dot-server-deploy's template_client.
 
 const PORT := 28911
 const CLIENT_PEER := 7
@@ -383,16 +377,9 @@ func _test_map_menu() -> void:
 	done()
 
 
-## Your own player is drawn between its ticks at the clock's render alpha, and a physics frame
-## the clock's drift leaves with no tick, or with two, is drawn through.
-##
-## The connected client hands its view its clock. The motion itself is measured on a clock of
-## its own, which nothing steers: over a socket the clock's drift makes slips of its own at
-## moments nobody chooses, and two in a row are more than render_alpha takes back by design.
-## Frames are drawn a third of the way through their tick, with one no-tick and one two-tick
-## frame forced, beside a control drawn at that third alone (the engine's fraction, how it would
-## be drawn without the clock). A frame that moves under half the steady step is a stall; over
-## one and a half, a double.
+## Your own player is drawn between its ticks at the clock's render alpha, even through a frame with no tick or two.
+## The motion is measured on a clock nothing steers, with one no-tick and one two-tick frame
+## forced, beside a control drawn at the engine's fraction. Under half a step is a stall, over one and a half a double.
 func _test_drawn_through_a_slip() -> void:
 	section("your own player is drawn through a frame with no tick, or two")
 	var net: DotNetManager = _client.get("net")
@@ -451,12 +438,9 @@ func _test_drawn_through_a_slip() -> void:
 	done()
 
 
-## Whether any row of the chat box's history has [param text] in it.
 ## A module reload must leave ONE link under the server, still named for the client's route.
-## Two used to be left, the live one renamed `@Node@n`, and every RPC to a real client was lost
-## without an error. The proof is the next section: a client joins the reloaded server, and
-## signing on is server events over the socket. Before any client, because a reload mid-session
-## leaves the new bridge not knowing who is seated, which is a different matter.
+## A second one, the live one renamed `@Node@n`, loses every real client's RPC without an error.
+## Runs before any client joins: a mid-session reload leaves the bridge not knowing who is seated.
 func _test_a_module_reload() -> void:
 	section("a module reload leaves one live link")
 	for _i in range(2):
@@ -472,6 +456,7 @@ func _test_a_module_reload() -> void:
 	done()
 
 
+## Whether any row of the chat box's history has [param text] in it.
 func _shown(chat: DotChatWindow, text: String) -> bool:
 	for row: Variant in chat.history():
 		for part: Variant in row:
@@ -489,12 +474,9 @@ func _test_leaving() -> void:
 	done()
 
 
-## Inputs go unreliable, so every packet carries the last few commands
-## (TplBridge.INPUT_COPIES). A socket on localhost never loses one, so this section puts a
-## second bridge pair side by side with no socket at all, carries the client's packets to the
-## server by hand, and drops one. That tick's command must still reach the server, from the
-## copies in the next packet. Then the copies of ticks the server has already simulated must be
-## skipped rather than pushed, which would count every one of them as a late input.
+## Inputs go unreliable, so every packet carries the last few commands (TplBridge.INPUT_COPIES).
+## Localhost never loses one, so two bridges are joined with no socket and one packet is dropped:
+## its command must arrive from the next packet's copies, and copies already simulated are skipped.
 func _test_a_lost_input() -> void:
 	section("a lost input packet is made up by the next one")
 	var server_bridge := _bridge_pair_half(true)
@@ -566,8 +548,6 @@ func _bridge_pair_half(is_server: bool) -> TplBridge:
 	var _started := net.start()
 	return bridge
 
-
-# --- Helpers -----------------------------------------------------------------
 
 func _server_game() -> Node:
 	return (_server.modules.get_module("tpl") as DotGameModule).game as Node

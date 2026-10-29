@@ -3,10 +3,9 @@ extends DotNetBehaviour
 const TplCommand := preload("tpl_command.gd")
 const TplGame := preload("../tpl_game.gd")
 
-## One player, as the netcode sees them. The same script everywhere: on the server it moves
-## the player and collects coins; on the client that OWNS the player it moves them ahead of the
-## server (prediction), and dot-net rewinds and replays that when a snapshot disagrees; on every
-## other client it only receives, and interpolates between snapshots.
+## One player, as the netcode sees them, the same script everywhere: the server moves them and
+## collects coins; the owning client predicts ahead (dot-net rewinds and replays); every other
+## client only receives and interpolates.
 
 var game: TplGame = null
 var player: TplGame.Player = null

@@ -1,19 +1,8 @@
 extends RefCounted
 
-## The arenas: this game's maps, as data. M lists them, and choosing one changes it.
-##
-## [b]A map here is a row of numbers, not a scene.[/b] Coin Grab's arena is a rectangle with
-## coins in it, so an arena is how big the rectangle is, how many coins lie in it and what
-## colour its floor is. Add a row and it is in the M menu, solo and on a server, with nothing
-## else to change. A game whose maps are levels with walls in them keeps a scene per map
-## instead, and dot-map's catalogue is the way to list those.
-##
-## Every arena fits inside [constant TplGame.ARENA], which is also the range positions are
-## sent in: a bigger one would need the wire's ranges widened with it.
-##
-## [b]The ids are the wire.[/b] The server names the arena it changed to by id, so rename one
-## only together with everybody's client, which in a pack is always the case: a server and its
-## players mount the same version.
+## The arenas: this game's maps as data; M lists them and choosing one changes it.
+## [b]A map is a row of numbers, not a scene[/b]: size, coin count, floor colour; add a row and it is in the M menu.
+## Every arena fits inside [constant TplGame.ARENA], the wire's range. [b]The ids are the wire[/b]: never rename one alone.
 
 ## `id`: what the server and the menu call it. `name`: what a player reads. `size`: in world
 ## units, at most TplGame.ARENA. `coins`: how many lie in it at once (at most 255). `floor`:

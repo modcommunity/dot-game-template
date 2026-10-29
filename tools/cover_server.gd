@@ -1,12 +1,8 @@
 extends Node
 
-## A headless dedicated Coin Grab for tools/render_cover.gd to join, left running.
-##
-## [codeblock]
-## godot --headless --path . res://tools/cover_server.tscn -- --port 27399
-## [/codeblock]
-## The root is named CoverServer in the scene, like render_cover's, so the RPC path to the
-## "Server" node below is the same on both sides.
+## A headless dedicated Coin Grab for tools/render_cover.gd to join, left running:
+## `godot --headless --path . res://tools/cover_server.tscn -- --port 27399`. The root is named
+## CoverServer, like render_cover's, so the RPC path to "Server" is the same on both sides.
 
 var server: DotServer = null
 

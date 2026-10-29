@@ -8,32 +8,9 @@ const TplWorkshop := preload("tpl_workshop.gd")
 
 const CHANNEL := "tpl.client"
 
-## What a player runs: `scenes/tpl_client.tscn`. Offline, or joined to a server.
-##
-## [b]Whether there is a link decides which.[/b] The client shell connects a [DotClientLink],
-## which registers itself, and then loads this scene out of the pack the server named. Run the
-## project on its own and there is no link, so it plays offline: the same rules, alone.
-##
-## [b]Keys are read directly, not through the input map:[/b] project.godot does not travel in
-## a pack, so an action defined there does not exist in the shell that mounts this game.
-##
-## [b]The platform layer is dot-game's [DotGameClient][/b]: the loading cover, the settings
-## and the Escape menu, the console, the HUD's theme, Tab for the board, M for the map menu,
-## and input held while the cover is up, a menu is open or a chat line is being typed. What is
-## left here is what is this game's own. See [method _ready].
-##
-## [b]Escape is the menu and Tab, held, is the scoreboard[/b], both dot-menu's: the stock
-## window and frame-rate settings and six themes, and a board of every player's coins, time
-## on the server and ping. See [method _build_menu].
-##
-## [b]M is the map menu[/b], dot-menu's: the arenas (tpl_arenas.gd). Solo the choice is the
-## change, made here at once; connected the server decides: the menu asks it with
-## `/mapmenu`, the server answers with its list and whether this player holds the permission
-## its owner named (`sv_map_menu_flag`, staff by default), and changes the arena for
-## everybody or, for anybody else, starts a vote for it (tpl_module.gd).
-##
-## [b]Y is chat[/b], dot-ui's chat box: what players say, and what the server says (a vote, an
-## admin's `say`, the reply to a command). See [method _build_chat].
+## What a player runs: `scenes/tpl_client.tscn`, offline, or joined to a server when the shell's [DotClientLink] exists.
+## Keys are read directly because project.godot's input map does not travel in a pack.
+## [DotGameClient] supplies the cover, settings, Escape menu, console, Tab board, M map menu and Y chat: see [method _ready].
 
 ## The shell's link, when the shell sets it; otherwise found in the registry.
 var link: DotClientLink = null
@@ -70,11 +47,9 @@ var _touch_at: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	# First, before anything is drawn: the loading cover (dot-core's load gate, through
-	# dot-game). Add your own holds on `platform.gate`: `gate.hold(&"map", "Loading")` now and
-	# `gate.release(&"map")` when it is built. It also covers the first frames' shader
-	# compiles. Nothing is held at first except the local player, asked every frame and met
-	# at once offline. No Camera3D in a 2D game, so none to wait for.
+	# First, before anything is drawn: the loading cover (dot-core's load gate). Add your own
+	# holds on `platform.gate`: `gate.hold(&"map", "Loading")` now, `gate.release(&"map")` when
+	# built. Nothing else is held at first but the local player.
 	platform = DotGameClient.new()
 	platform.link = link
 	platform.require_camera = false
@@ -129,11 +104,8 @@ func _ready() -> void:
 
 
 ## Settings and the Escape menu, from dot-menu; [DotGameClient] sets them up.
-##
-## Only the stock settings this game has something to apply to: the window, V-Sync, the
-## frame-rate cap, the theme and the frame-rate counter. A 2D game with no audio has no
-## use for a field of view, a render scale, effects or volumes, and a switch that changes
-## nothing is worse than no switch. Add the groups back as the game grows them.
+## Only the stock settings this game can apply (window, V-Sync, frame-rate cap, theme, counter):
+## a switch that changes nothing is worse than none. Add groups back as the game grows them.
 func _build_menu() -> void:
 	settings = DotMenuSettings.new()
 	settings.name = "Settings"
@@ -176,20 +148,9 @@ func board_snapshot() -> Dictionary:
 	return {"server": {"name": "Coin Grab", "game": "offline"}, "players": rows}
 
 
-## The chat box: Y opens it, Enter sends, Escape closes.
-##
-## [b]This game routes no chat of its own, and does not need to.[/b] What a player types goes
-## to dot-server's chat manager through the shell's link ([method DotClientLink.send_chat]),
-## which checks it (rate, length, a gag), sends it to everybody, and runs a line starting
-## with `!` or `/` as a command instead: `!rtv`, `!vote 2`, the map menu's `/mapmenu`. Every
-## line comes back on [signal DotClientLink.chat_received], the sender's own included, so
-## what you see is what the server accepted. A game whose chat needs channels of its own
-## (teams, a radius) routes it through dot-game's `DotGameServices` instead.
-##
-## [b]`!sm` and `/sm` never leave this machine.[/b] They are the player's own block list
-## (dot-chat's `DotChatSelfMute`), which the box runs before anything is sent, so the muted
-## player is never told; the console's `sm` is the same list. Lines from a muted player are
-## dropped in [method _on_chat_line].
+## The chat box: Y opens it, Enter sends, Escape closes. This game routes no chat of its own: lines go to the server
+## through [method DotClientLink.send_chat] and return on [signal DotClientLink.chat_received]. `!sm` and `/sm` never
+## leave this machine (dot-chat's self-mute); muted lines are dropped in [method _on_chat_line].
 func _build_chat(offline: bool) -> void:
 	chat = DotChatWindow.new()
 	chat.name = "Chat"
@@ -279,11 +240,9 @@ func _physics_process(delta: float) -> void:
 		game.tick(delta)
 		return
 
-	# The clock decides how many ticks this frame is worth, and which tick an input is for:
-	# a little AHEAD of the server, so it arrives before the server simulates that tick.
-	#
-	# Each pass is its own tick: `advance` has already moved the clock by all of them, so
-	# `input_tick()` is the last one, and the passes before it count back from there.
+	# The clock decides how many ticks this frame is worth and which tick an input is for, a
+	# little AHEAD of the server. `advance` has already moved the clock by every pass, so
+	# `input_tick()` is the last one and earlier passes count back from there.
 	var ticks := net.clock.advance(delta)
 	for i in range(ticks):
 		if net.clock.is_synced() and local_id != 0:

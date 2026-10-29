@@ -4,12 +4,9 @@ const TplArenas := preload("../game/tpl_arenas.gd")
 const TplGame := preload("../game/tpl_game.gd")
 const TplWorkshop := preload("../game/tpl_workshop.gd")
 
-## What a subscribed map pack does to the solo arena list, against a fixture
-## [DotContentIndex] and never the process's shared one: a pack map is listed as Name [Pack]
-## and plays, online lists none, a map kind the game does not accept is left out, the game's
-## own ids win, and a bad document is refused with a reason.
-##
-##     godot --headless --path . res://examples/headless_workshop.tscn
+## What a subscribed map pack does to the solo arena list, against a fixture [DotContentIndex]:
+## listed as Name [Pack] and playable, none online, an unaccepted map kind left out, the game's
+## own ids win, a bad document refused with a reason.
 
 const DIR := "user://ws_fixture/"
 

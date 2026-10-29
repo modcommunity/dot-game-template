@@ -1,9 +1,8 @@
 extends DotConfig
 
-## This game's server tunables. Every exported field becomes a `tpl_<field>` cvar, a key of
-## `cfg/server/game/<game>/config/game.yml`, a `TPL_*` environment variable and a `--tpl-*`
-## flag, and shows in dot-workbench, with no further code (dot-game's docs/config-binder.md).
-## A delivered pack may not declare a `class_name`, so TplGame loads this by preload.
+## This game's server tunables. Every exported field becomes a `tpl_<field>` cvar, a game.yml
+## key, a `TPL_*` environment variable and a `--tpl-*` flag, and shows in dot-workbench.
+## A pack may not declare a `class_name`, so TplGame loads this by preload.
 
 
 func env_prefix() -> String:

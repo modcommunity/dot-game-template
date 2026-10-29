@@ -6,15 +6,8 @@ const TplGame := preload("tpl_game.gd")
 const TplPaths := preload("tpl_paths.gd")
 
 ## This game, as a module a dedicated server loads (`module:` in game.yml).
-##
-## [b]What every server game repeats is [DotGameModule]'s, not this file's.[/b] It finds the
-## world the server scene registered, builds the netcode from [method _net_config] and the
-## bridge from [method _make_bridge], seats each player through the bridge's `add_player` when
-## they finish joining, calls the bridge's `server_tick` every physics frame, and takes it all
-## down in reverse on unload. What is left here is what is this game's.
-##
-## No `class_name`, here or anywhere in this repository: a delivered pack's class names are
-## never registered in the host, so a script that used one would not compile there.
+## What every server game repeats is [DotGameModule]'s; what is left is this game's.
+## No `class_name`: a delivered pack's class names are never registered in the host.
 
 ## The players' say over the arena: dot-vote's director, whose commands include the map
 ## menu's server half. See [method _build_map_menu].
@@ -68,18 +61,8 @@ func _game_load() -> DotResult:
 
 
 ## M on a server: dot-vote's map menu, over a vote of the arenas.
-##
-## [b]Who may change the arena is the server owner's call[/b], through the `sv_map_menu_flag`
-## cvar the map menu registers: `generic` by default, the flag every staff group from moderator
-## up holds; `changemap` for admins only; `anyone` for everybody; with one player on the server, `sv_map_menu_alone` (1) lets that player change it directly. A player without it is offered a
-## vote instead: choosing an arena nominates it and rocks the vote (`!rtv`), and when enough
-## players have, a ballot opens in chat for twenty seconds (`!vote 2`). The client half is [method
-## DotMenu.use_maps] in tpl_client.gd, which asks the server with `/mapmenu`.
-##
-## [b]The vote is here because the menu is its server half[/b]: dot-vote's `DotVoteMapMenu`
-## lists the director's choices and falls back to its nominate and rock-the-vote. The rules are
-## the smallest that make sense for a game with no clock: no time limit, nothing but rocking
-## the vote opens a ballot, and the winner is played at once.
+## [b]Who may change the arena is `sv_map_menu_flag`[/b] (`generic` staff by default, `changemap`, `anyone`; `sv_map_menu_alone`
+## for a lone player); anybody else nominates and rocks the vote (`!rtv`, `!vote 2`). The client half is [method DotMenu.use_maps].
 func _build_map_menu() -> void:
 	var world := game as TplGame
 	var source := DotVoteListSource.new()

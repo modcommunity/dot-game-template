@@ -3,15 +3,8 @@ extends Node
 const TplBridge := preload("tpl_bridge.gd")
 
 ## The four remote calls this game makes, on one node that exists on both ends.
-##
-## [b]Godot routes an RPC by the receiver's NODE PATH and refuses it unless both ends declare
-## the same @rpc methods.[/b] So one script runs on both ends, named [constant NODE_NAME] on
-## both, under a node named `Server` on both: [DotServer] on one side, the [DotClientLink] the
-## shell names to match on the other. An @rpc added here breaks every older client's whole
-## connection; add a kind to TplEvent instead.
-##
-## Everything rides channel 1, which dot-server leaves to games, so snapshots never queue
-## behind the server's own traffic.
+## [b]Godot routes an RPC by NODE PATH and refuses it unless both ends declare the same @rpc methods[/b],
+## so one script runs on both, named [constant NODE_NAME], under `Server`. Add a TplEvent kind, not an @rpc.
 
 const NODE_NAME := &"Tpl"
 const CHANNEL_STATE := 1

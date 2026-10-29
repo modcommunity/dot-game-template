@@ -7,26 +7,16 @@ const TplLink := preload("tpl_link.gd")
 const TplPlayerNet := preload("tpl_player_net.gd")
 const TplRequest := preload("tpl_request.gd")
 
-## The only file that names both the game and dot-net. Everything that crosses the wire starts
-## or ends here, on both ends.
-##
-## Four things travel through [TplLink]: SNAPSHOTS (dot-net's: positions and scores), INPUTS
-## (the client's last few intents, every tick), EVENTS (hello, arena, coins, spawn, despawn) and
-## REQUESTS (ready).
-## dot-game's module calls [method add_player], [method remove_peer] and [method server_tick].
+## The only file that names both the game and dot-net; everything on the wire starts or ends here.
+## Four things travel through [TplLink]: snapshots, inputs (the last few intents, every tick),
+## events (hello, arena, coins, spawn, despawn) and requests (ready).
 
 ## The acknowledgement dot-net puts in front of every input. Fixed width, so it goes first.
 const ACK_BYTES := 4
 
 ## Commands in every input packet: this tick's and the four before it.
-##
-## Inputs go unreliable, because a command that arrives after its tick is useless and waiting
-## for a resend would hold up every one behind it. So packets are lost, and with one command a
-## packet every lost one is a tick the server runs on the previous command while this client
-## predicted the real one: a correction on screen. Repeating the last few costs a few bytes
-## (the copies' ticks are one-byte steps) and the server misses a command only when five
-## packets in a row are lost. The family measured 80% of ticks on the right command at 20%
-## loss with one copy, and 99-100% with three to five.
+## Inputs are unreliable, so a lost packet means the server runs a tick on the previous command
+## and the client's prediction is corrected. Repeating the last few costs a few bytes.
 const INPUT_COPIES := 5
 
 ## Client side: the server said which player this client is.
@@ -90,11 +80,9 @@ func attach(p_game: TplGame, p_net: DotNetManager) -> DotResult:
 func open_link(parent: Node) -> void:
 	link = TplLink.new()
 	link.bridge = self
-	# Not parent.add_child: the link has to sit under `Server` (RPCs route by path) but must
-	# die with this bridge. A bare add_child left a second link after every module reload, and
-	# Godot renamed the live one `@Node@n`, so RPCs to real clients were silently lost.
-	# DotGameLink frees it with the bridge, and without remove_child, which errors when the
-	# whole server tree is torn down.
+	# Not parent.add_child: the link sits under `Server` (RPCs route by path) but must die with
+	# this bridge, or a module reload leaves a second one and real clients' RPCs are lost.
+	# DotGameLink frees it with the bridge, without remove_child (which errors on teardown).
 	DotGameLink.attach(link, parent, self, TplLink.NODE_NAME)
 
 
@@ -109,8 +97,6 @@ func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 	else:
 		link.send_request(payload)
 
-
-# --- Server ------------------------------------------------------------------
 
 ## Somebody finished joining. [param player_id] is their session's userid, which survives a
 ## reconnect where a peer id does not.
@@ -218,13 +204,9 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> void:
 	)
 	if commands.is_empty():
 		return
-	# Each is buffered for its tick. dot-net sanitises it on the way out, on the one path every
-	# input takes, rather than here where a second caller could forget.
-	#
-	# A copy of a tick the server has already simulated is skipped, not pushed: the buffer
-	# would count it as LATE, and the late count is how an operator spots a client whose clock
-	# runs behind, so five copies a packet would bury the real ones. The newest is always
-	# pushed, so a command that really is late is still counted.
+	# Each is buffered for its tick; dot-net sanitises on the one path every input takes.
+	# A copy of an already simulated tick is skipped: the buffer would count it LATE, and that
+	# count is how an operator spots a lagging client. The newest is always pushed.
 	var buffer := net.input_buffer_for(peer_id)
 	var newest := commands[commands.size() - 1]
 	for command in commands:
@@ -245,8 +227,6 @@ func _on_request(message: DotNetMessage) -> void:
 			_admit(request.sender_peer_id)
 
 
-# --- Client ------------------------------------------------------------------
-
 ## Tells the server this client's scene exists. Once, after the join has finished.
 func ask_ready() -> void:
 	net.send(TplRequest.new(TplRequest.Ask.READY), 1)
@@ -260,11 +240,8 @@ func client_tick(tick: int, intent: Vector2) -> void:
 	command.move = intent
 
 	# Decoded again before it is kept or predicted with: the server simulates the quantised
-	# value, so the client must too, or every tick is a small disagreement the server has to
-	# correct. It is kept as decoded, NOT sanitised, because what is kept is resent as a copy in
-	# the next few packets: a decoded value encodes back to exactly the same bits, a sanitised
-	# one need not. TplGame.step bounds the length itself, so this and the server's sanitised
-	# value move a player the same distance.
+	# value. Kept as decoded, NOT sanitised, because it is resent as a copy and a decoded value
+	# encodes back to the same bits; TplGame.step bounds the length itself.
 	var bytes := DotNetWriter.new()
 	command.write(bytes)
 	var sent := TplCommand.new()
@@ -345,8 +322,6 @@ func _adopt_rates(tick_rate: int, snapshot_rate: int) -> void:
 		net.clock.tick_rate = tick_rate
 		Engine.physics_ticks_per_second = tick_rate
 
-
-# --- Both --------------------------------------------------------------------
 
 ## A node, a behaviour and an identity: what makes a player replicate.
 func _spawn(who: TplGame.Player, owner_peer: int) -> DotNetIdentity:

@@ -3,13 +3,8 @@ extends "suite.gd"
 const TplPaths := preload("../game/tpl_paths.gd")
 
 ## The rules a game must keep to be delivered as a pack, checked against this repository.
-##
-##     godot --headless --path . res://examples/headless_pack.tscn
-##
-## A published game is mounted at res://dot_cloud/<owner>/<repo>/<version>/, where a
-## `class_name` is never registered and a bare "res://<your folder>/..." names the host's file,
-## not yours. Both break without an error, so both are refused here -- by scanners that must
-## first find a planted violation, because a blind scanner reports a clean tree.
+## A pack mounts at res://dot_cloud/<owner>/<repo>/<version>/, where a `class_name` is never registered
+## and a bare "res://<your folder>/..." names the host's file; scanners that first find a planted violation refuse both.
 
 ## Folders that never travel in a pack (dot-ci's package.sh drops them).
 const NOT_SHIPPED := ["addons", "examples", "tools", "screenshots"]
