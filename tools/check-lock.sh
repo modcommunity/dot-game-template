@@ -5,9 +5,10 @@
 #   tools/check-lock.sh --self-test                    runs the check against tools/fixtures
 #
 # A stale pin only shows on a fresh install, so it is caught here, not there.
-set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# The version rule (sort -V) is mirrored in dot-bootstrap/tools/check_lock_staleness.sh; change both.
 
+# is_older <have> <want>: true when have sorts at or below want
+is_older() { [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$1" ]; }
 # compare <lock> <server lock>: prints each stale pin; exit 1 if any
 compare() {
     local bad=0 repo have want
@@ -15,13 +16,18 @@ compare() {
         case "$repo" in ''|'#'*) continue ;; esac
         want="$(awk -v r="$repo" '$1 == r { print $2; exit }' "$2")"
         [ -n "$want" ] && [ "$want" != "$have" ] || continue
-        if [ "$(printf '%s\n%s\n' "$have" "$want" | sort -V | head -1)" = "$have" ]; then
+        if is_older "$have" "$want"; then
             printf 'stale: %s is %s, dot-server-deploy pins %s\n' "$repo" "$have" "$want"
             bad=1
         fi
     done < "$1"
     return $bad
 }
+export -f is_older compare
+
+main() {
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 if [ "${1:-}" = "--self-test" ]; then
     f=tools/fixtures
@@ -46,3 +52,6 @@ else
     echo "fix: tools/sync-lock.sh ${1:-<path to dot-server-deploy>} && git commit -am 'Refresh addons.lock'"
     exit 1
 fi
+}
+
+[[ ${BASH_SOURCE[0]} == "$0" ]] && main "$@"
