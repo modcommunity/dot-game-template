@@ -64,6 +64,9 @@ run_checks() {    # <project dir>
     done
 }
 
+tools/check-lock.sh --self-test || fails=$((fails + 1))
+tools/check-lock.sh || fails=$((fails + 1))
+
 run_checks .
 
 if [ "${1:-}" != "--quick" ]; then
