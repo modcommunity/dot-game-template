@@ -1,5 +1,6 @@
 extends Node
 
+const TplConfig := preload("tpl_config.gd")
 const TplGame := preload("tpl_game.gd")
 
 ## What a dedicated server loads as this game's scene. Never a client.
@@ -13,7 +14,7 @@ func _ready() -> void:
 	game.authoritative = true
 	game.register_service = true
 	# Layered config; strict on a dedicated server, so a typo in cfg/ stops the boot.
-	var binder := DotGameConfigBinder.create(game.config, "tpl", "tpl", "user://cfg/tpl.json")
+	var binder := TplConfig.make_binder(game.config, "user://cfg/tpl.json")
 	var loaded := binder.load_layers()
 	if not loaded.ok:
 		DotGameConfigBinder.fail_boot(get_tree(), loaded)

@@ -1,0 +1,8 @@
+# dot-game-template: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/dot-game-template/config_rules/game.yml. Layers: defaults < this < env < argv.
+
+# --- Rules
+# What one coin is worth. [1..1000]
+# coin_value: 1
+# Coins on the field beyond the arena's own number. [0..200]
+# extra_coins: 0

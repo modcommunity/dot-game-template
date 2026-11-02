@@ -75,6 +75,11 @@ done
 
 rm -rf .godot
 
+# The shipped cfg folder is named for the game id, which the sed above rewrote in the code.
+if [ -d cfg/game/dot-game-template ] && [ "$REPO" != "dot-game-template" ]; then
+    mv cfg/game/dot-game-template "cfg/game/${REPO}"
+fi
+
 printf 'renamed %d file(s) and rewrote %d: tpl -> %s, Tpl -> %s, dot-game-template -> %s\n' \
     "$moved" "$changed" "$NEW" "$CAP" "$REPO"
 printf 'next: godot --headless --path . --import && tools/check.sh\n'

@@ -24,7 +24,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, then dot-game's, dot-net's a
 | `game/tpl_client.gd`, `tpl_view.gd` | the client (settings through `DotMenuSettings`, console through `DotConsoleKit`, chat through dot-ui's `DotChatWindow`) and drawing |
 | `game/tpl_paths.gd` | `rebase()` / `rebase_onto()` for delivery |
 | `game/net/` | `tpl_bridge.gd` (the only file naming the game and dot-net), `tpl_link.gd` (the one `@rpc` node), `tpl_command.gd`, `tpl_event.gd`, `tpl_request.gd`, `tpl_player_net.gd` |
-| `examples/` | `headless_rules`, `headless_net`, `headless_pack`, `headless_workshop`, and `suite.gd` (sections and a CHECKS total) |
+| `examples/` | `headless_config`, `headless_workbench`, `headless_rules`, `headless_net`, `headless_pack`, `headless_workshop`, and `suite.gd` (sections and a CHECKS total) |
 | `tools/cover_server.tscn`, `tools/render_cover.sh` | a real client on a real server in a second process, rendered under the loading cover and just after it lifts (`screenshots/`, ignored) |
 | `tools/shot_workshop.tscn` | renders a solo pack map (`../../tools/screenshot.sh dot-game-template out.png --wait 6 --scene res://tools/shot_workshop.tscn`) |
 | `addons.lock`, `tools/sync-lock.sh` | the addon release tags the game builds against (resolve-deps.sh clones them); the same tags as dot-server-deploy's `addons.lock`, so a pack's `requires.json` levels never exceed what the server installs. Run `sync-lock.sh` after dot-server-deploy's lock moves |

@@ -14,6 +14,9 @@ const TplPaths := preload("tpl_paths.gd")
 var director: DotVoteDirector = null
 var vote_commands: DotVoteCommands = null
 
+## dot-workbench over the config; the players never see it.
+var workbench: DotGameWorkbench = null
+
 ## Connected to the server, which outlives this module, so it is let go in [method _game_unload].
 var _on_left: Callable = Callable()
 
@@ -48,16 +51,41 @@ func _make_bridge() -> Node:
 
 
 func _game_load() -> DotResult:
-	var binder := (game as TplGame).config_binder
-	if binder != null:
-		binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
-		binder.bind_commands(add_command)
+	_bind_config((game as TplGame).config_binder)
 	add_command("tpl_status", _cmd_status, "Show the players, their scores and the coins")
 	_build_map_menu()
 	# "Still loading": a player behind their client's cover collects nothing (TplGame.collect).
 	# The player id is the session's userid, which is the roster's seat.
 	(game as TplGame).harm_gate = can_be_harmed
 	return DotResult.success(null)
+
+
+## Every config field as a `tpl_<field>` cvar, the cfg/ diff commands, and dot-workbench over the same fields:
+## the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
+func _bind_config(binder: DotGameConfigBinder) -> void:
+	if binder == null:
+		return
+	workbench = DotGameWorkbench.new()
+	workbench.name = "Workbench"
+	workbench.dedicated = DisplayServer.get_name() == "headless"
+	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
+	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
+		return server != null and server.admins != null and actor is String \
+			and bool(server.admins.uid_has_permission(actor, flag))
+	for set: DotProfileSet in binder.profile_sets():
+		workbench.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
+	add_child(workbench)
+	var started := workbench.start()
+	if not started.ok:
+		log_warn("the workbench did not start", {"why": started.error.message})
+	else:
+		# Off until the owner sets sv_workbench_remote 1; then flagged admins edit from a client.
+		if net != null:
+			var _served := workbench.serve_remote(net)
+		if workbench.api != null:
+			binder.attach(workbench.api.runtime)
+	binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_commands(add_command)
 
 
 ## M on a server: dot-vote's map menu, over a vote of the arenas.
@@ -132,6 +160,9 @@ func _build_map_menu() -> void:
 
 
 func _game_unload() -> void:
+	if workbench != null:
+		workbench.queue_free()
+		workbench = null
 	if game != null:
 		(game as TplGame).harm_gate = Callable()
 	if _on_left.is_valid() and server.client_disconnected.is_connected(_on_left):
