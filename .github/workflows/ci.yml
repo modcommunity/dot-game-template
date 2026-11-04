@@ -24,5 +24,6 @@ jobs:
             suite-timeout: 900
             efficiency: true
             shell-command: 'tools/check-lock.sh --self-test && tools/check-lock.sh'
+            hygiene: true
         secrets:
             DEPS_TOKEN: ${{ secrets.DOT_DEPS_TOKEN }}
