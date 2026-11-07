@@ -11,10 +11,19 @@
 #   ./game.sh server -- ARGS       ARGS go to dot-server-deploy's ./server (e.g. -- --port 7000)
 #   ./game.sh test                 parse every script, then run every test suite
 #   ./game.sh test NAME...         run only these suites (e.g. ./game.sh test headless_net)
+#@if suite_args
+#   ./game.sh test NAME -- ARGS    pass ARGS to the suite (e.g. test headless_maps -- --map=ID)
+#@end
 #@if soak
 #   ./game.sh soak @{SOAK_USAGE}bot soak on tools/soak.tscn (report in .godot/test-logs/soak-@{SOAK_ARG}.json)
 #@end
 #   ./game.sh suites               list the test suites
+#@if visual
+#   ./game.sh visual [--update] [MAP...]  compare map frames to tests/golden (tools/visual_check.sh)
+#@end
+#@if perf
+#   ./game.sh perf [--update] [--post]  frame-time budget on the GPU box vs tests/perf_budget.json
+#@end
 #@if netchaos
 #   ./game.sh netchaos [ARGS]      real server and clients under tc netem loss, jitter, blackout
 #@end
@@ -52,6 +61,15 @@ cd "$ROOT" || exit 1
 GODOT="${GODOT:-godot}"
 TIMEOUT=@{TIMEOUT_DEFAULT}
 PARSE=1
+#@if min_timeouts
+# A suite that legitimately needs at least this long, as name=seconds; a larger
+# --timeout still wins.
+MIN_TIMEOUTS="@{MIN_TIMEOUTS}"
+#@end
+#@if ui_checks
+# tools/verify_ui.sh checks that drive the real client under xvfb.
+UI_CHECKS="@{UI_CHECKS}"
+#@end
 #@if suite_timeouts
 TIMEOUT_GIVEN=0
 # A suite that legitimately runs longer than the default, as name=seconds. An explicit
@@ -93,9 +111,23 @@ check_addons() {
     local missing=""
     while read -r name; do
         [ -e "addons/$name/plugin.cfg" ] || [ -d "addons/$name" ] || missing="$missing $name"
+#@if gitignore_optional
+    done < <(awk '/^# bootstrap-optional/{o=1; next} !o && /^\/addons\/[^\/]+\/?$/{sub("^/addons/",""); sub("/$",""); print} {o=0}' .gitignore 2>/dev/null)
+#@else
     done < <(sed -n 's|^/addons/\([^/]*\)/\{0,1\}$|\1|p' .gitignore 2>/dev/null)
+#@end
     [ -z "$missing" ] || die "Missing addons:$missing
 Run dot-bootstrap first: https://github.com/modcommunity/dot-bootstrap" 2
+#@if content_links
+    # Content links (maps, world): without them the suites run on an empty level set. A git
+    # worktree gets them from tools/link_worktree.sh.
+    local path src gone=""
+    while IFS=$'\t' read -r path src; do
+        [ -n "$path" ] && [ ! -e "${path#/}" ] && gone="$gone ${path#/} (from $src)"
+    done < <(awk '/^# bootstrap-link: /{src=$3; next} src!="" && /^\//{print $0 "\t" src} {src=""}' .gitignore 2>/dev/null)
+    [ -z "$gone" ] || die "Content not linked:$gone
+Run dot-bootstrap, or in a git worktree: tools/link_worktree.sh <main checkout>" 2
+#@end
 }
 
 deploy_dir() {
@@ -119,6 +151,23 @@ pack_all() {
     (cd "$deploy" && ./server pack "$PACK" --source "$ROOT") >/dev/null || die "could not pack $PACK"
 }
 
+#@if ui_checks
+run_ui_check() {
+    local check="$1" log=".godot/test-logs/verify_ui_$1.log" status
+    mkdir -p .godot/test-logs
+    timeout "$TIMEOUT" tools/verify_ui.sh "$check" >"$log" 2>&1
+    status=$?
+    if [ "$status" -eq 0 ] && ! grep -qE 'SCRIPT ERROR|Parse Error' "$log"; then
+        printf '  %sok%s   verify_ui %s  %s\n' "$GRN" "$OFF" "$check" "$(grep -E '^VERIFY .*[0-9]+ passed' "$log" | tail -1)"
+        return 0
+    fi
+    printf '  %sFAIL%s verify_ui %s: exited %s\n' "$RED" "$OFF" "$check" "$status"
+    grep -E 'VERIFY FAIL|SCRIPT ERROR|Parse Error' "$log" | head -10 | sed 's/^/       /'
+    printf '       full log: %s\n' "$log"
+    return 1
+}
+
+#@end
 run_suite() {
 #@if suite_timeouts
     local scene="$1" log out status summary kv TIMEOUT="$TIMEOUT"
@@ -132,7 +181,13 @@ run_suite() {
     mkdir -p .godot/test-logs
     log=".godot/test-logs/$scene.log"
     [ -t 1 ] && printf '  ..   %s' "$scene"
-    timeout "$TIMEOUT" "$GODOT" --headless --path . "res://examples/$scene.tscn" >"$log" 2>&1
+#@if min_timeouts
+    local limit="$TIMEOUT" mkv
+    for mkv in $MIN_TIMEOUTS; do
+        [ "${mkv%%=*}" = "$scene" ] && [ "$limit" -lt "${mkv#*=}" ] && limit="${mkv#*=}"
+    done
+#@end
+    timeout @{LIMIT} "$GODOT" --headless --path . "res://examples/$scene.tscn"@{SUITE_ARGS_SH} >"$log" 2>&1
     status=$?
     summary="$(grep -Eo '[0-9]+ (passed|checks), [0-9]+ failed' "$log" | tail -1)"
     # Section accounting: "N sections entered, M finished" from DotGameCheckSuite._report_sections.
@@ -145,7 +200,7 @@ run_suite() {
         summary="$summary  [no section accounting]"
     fi
     if [ "$status" -eq 124 ]; then
-        out="did not finish within ${TIMEOUT}s"
+        out="did not finish within @{LIMIT_MSG}s"
     elif [ "$status" -ne 0 ]; then
         out="exited $status"
     elif grep -qE 'SCRIPT ERROR|Parse Error|Lambda capture' "$log"; then
@@ -239,6 +294,16 @@ check_weapon_art() {
 
 #@end
 do_test() {
+#@if suite_args
+    # Everything after a literal `--` goes to each suite as user args (e.g. `test headless_maps -- --map=ID`).
+    SUITE_ARGS=()
+    local names=() a
+    while [ $# -gt 0 ]; do
+        if [ "$1" = "--" ]; then shift; SUITE_ARGS=("$@"); break; fi
+        names+=("$1"); shift
+    done
+    set -- ${names[@]+"${names[@]}"}
+#@end
     check_addons
     local fails=0 f out
     echo "importing"
@@ -276,6 +341,13 @@ do_test() {
     for scene in ${*:-$SUITES}; do
         run_suite "${scene%.tscn}" || fails=$((fails + 1))
     done
+#@if ui_checks
+    if [ $# -eq 0 ] && command -v xvfb-run >/dev/null 2>&1; then
+        for scene in $UI_CHECKS; do
+            run_ui_check "$scene" || fails=$((fails + 1))
+        done
+    fi
+#@end
 
     echo
     [ "$fails" -eq 0 ] && { printf '%sall passed%s\n' "$GRN" "$OFF"; return 0; }
@@ -332,6 +404,18 @@ case "$cmd" in
     suites)
         printf '%s\n' $SUITES
         ;;
+#@if perf
+    perf)
+        [ -x tools/perf_budget.sh ] || die "$GAME_NAME has no perf budget." 2
+        exec tools/perf_budget.sh "$@"
+        ;;
+#@end
+#@if visual
+    visual)
+        [ -x tools/visual_check.sh ] || die "$GAME_NAME has no visual check." 2
+        exec tools/visual_check.sh "$@"
+        ;;
+#@end
     shot)
         for tool in tools/shot.sh tools/screenshot.sh; do
             [ -x "$tool" ] || continue

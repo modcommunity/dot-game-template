@@ -23,7 +23,7 @@ jobs:
         with:
             suite-timeout: 900
             efficiency: true
-            shell-command: 'tools/check-lock.sh --self-test && tools/check-lock.sh'
+            shell-command: 'tools/check-lock.sh --self-test && tools/check-lock.sh && python3 -I tools/test_gen_game_sh.py'
             hygiene: true
         secrets:
             DEPS_TOKEN: ${{ secrets.DOT_DEPS_TOKEN }}
