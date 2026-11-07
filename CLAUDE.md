@@ -43,6 +43,10 @@ godot --headless --path . res://examples/headless_pack.tscn    # the pack rules
 
 Every suite shares `examples/suite.gd`: sections entered against sections completed, and a CHECKS total, because a script error aborts a section silently. dot-server-deploy's `template_client` is the only place it runs mounted, and it packages this repository's HEAD.
 
+## The games' game.sh is generated
+
+`tools/game.sh.in` is the one template of every game's `game.sh` (play, online, server, test, soak, suites, shot); a game keeps a `game.conf` (name, pack, extra packs, suite list, `FEATURES` such as `soak weapon_art suite_timeouts netchaos tool_checks`) and runs `../dot-game-template/tools/gen-game-sh.py .` to write `game.sh`, committed as before (hv and gpu.sh offload need the file in the checkout). `gen-game-sh.py --check .` fails when `game.sh` is not what template plus conf produce. A change to the shared logic goes in `game.sh.in` once, then each game regenerates. Not yet in the template (game-arena and game-zombie-zone still carry their own copy): bootstrap-link content check, `UI_CHECKS` under xvfb, arena's `visual`/`perf` commands and its raise-to-at-least suite limits, the `bootstrap-optional` awk in `check_addons`.
+
 ## Rules that bite
 
 - Keep it small: a feature a newcomer does not need on day one goes in the README as a next step, not in the code.
