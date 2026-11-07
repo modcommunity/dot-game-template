@@ -17,13 +17,13 @@ game.conf is KEY=VALUE lines, shell quoting, '#' comments:
   UI_CHECKS="name ..."                      with ui_checks: tools/verify_ui.sh checks run under xvfb
 Further FEATURES: suite_args (`test NAME -- ARGS`), content_links (the .gitignore
 "# bootstrap-link:" paths must exist), gitignore_optional (addons under "# bootstrap-optional"
-are not required), visual, perf (commands that run tools/visual_check.sh, tools/perf_budget.sh).
+are not required), coldstart (tools/cold_start.tscn), visual, perf (commands that run tools/visual_check.sh, tools/perf_budget.sh).
 Template syntax: '#@if NAME' / '#@else' / '#@end' lines (no nesting) and @{VAR}.
 """
 import os, re, shlex, stat, sys
 
 FEATURES = {"soak", "weapon_art", "suite_timeouts", "netchaos", "tool_checks", "min_timeouts", "ui_checks",
-            "suite_args", "content_links", "gitignore_optional", "visual", "perf"}
+            "suite_args", "content_links", "gitignore_optional", "visual", "perf", "coldstart"}
 DEFAULTS = {"EXTRA_PACKS": "", "SOAK_ARG": "MAP", "SOAK_FLAGS": "", "TIMEOUT_DEFAULT": "900",
             "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "FEATURES": ""}
 REQUIRED = ("GAME_NAME", "PACK", "SUITES")

@@ -18,6 +18,9 @@
 #   ./game.sh soak @{SOAK_USAGE}bot soak on tools/soak.tscn (report in .godot/test-logs/soak-@{SOAK_ARG}.json)
 #@end
 #   ./game.sh suites               list the test suites
+#@if coldstart
+#   ./game.sh coldstart [MAP] [ARGS]  cold start (tools/cold_start.tscn): fails on a tick over 1000 ms or open over 6 s; --cold wipes the caches
+#@end
 #@if visual
 #   ./game.sh visual [--update] [MAP...]  compare map frames to tests/golden (tools/visual_check.sh)
 #@end
@@ -404,6 +407,17 @@ case "$cmd" in
     suites)
         printf '%s\n' $SUITES
         ;;
+#@if coldstart
+    coldstart)
+        [ -f tools/cold_start.tscn ] || die "$GAME_NAME has no tools/cold_start.tscn." 2
+        check_addons
+        cold_args=()
+        [ -n "${1:-}" ] && { cold_args+=(--map "$1"); shift; }
+        timeout "$TIMEOUT" "$GODOT" --headless --path . res://tools/cold_start.tscn -- "${cold_args[@]}" "$@" \
+            2>&1 | grep -E '^COLD|SCRIPT ERROR|Parse Error|ERROR'
+        exit "${PIPESTATUS[0]}"
+        ;;
+#@end
 #@if perf
     perf)
         [ -x tools/perf_budget.sh ] || die "$GAME_NAME has no perf budget." 2

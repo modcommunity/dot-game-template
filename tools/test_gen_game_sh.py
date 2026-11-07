@@ -44,7 +44,7 @@ def make(root, conf, gitignore="/addons/dot_core\n", tools=()):
 
 BASE = 'GAME_NAME="T"\nPACK=""\nSUITES="alpha headless_imported"\n'
 ALL = BASE + ('FEATURES="soak weapon_art suite_timeouts netchaos tool_checks min_timeouts ui_checks suite_args '
-              'content_links gitignore_optional visual perf"\nSUITE_TIMEOUTS="alpha=5"\n'
+              'content_links gitignore_optional visual perf coldstart"\nSUITE_TIMEOUTS="alpha=5"\n'
               'MIN_TIMEOUTS="headless_imported=3000"\nUI_CHECKS="one two"\n')
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -91,6 +91,12 @@ with tempfile.TemporaryDirectory() as tmp:
     check("visual runs tools/visual_check.sh", "RAN visual_check.sh --update" in out, out)
     rc, out = sh(["./game.sh", "perf", "--post"], d, env)
     check("perf runs tools/perf_budget.sh", "RAN perf_budget.sh --post" in out, out)
+
+    rc, out = sh(["./game.sh", "coldstart"], d, env)
+    check("coldstart without tools/cold_start.tscn is refused", rc == 2 and "cold_start.tscn" in out, out)
+    open(os.path.join(d, "tools", "cold_start.tscn"), "w").write("")
+    rc, out = sh(["./game.sh", "coldstart", "m1"], d, env)
+    check("coldstart passes the map to the scene", "cold_start.tscn -- --map m1" in open(env["FAKE_LOG"]).read(), out)
 
     # the limit: a fake godot that never ends, run through a fake `timeout` that echoes its limit
     tbin = os.path.join(tmp, "tbin")
