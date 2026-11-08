@@ -25,6 +25,11 @@ func _sanitise() -> void:
 	move = move.limit_length(1.0)
 
 
+## Given to a silent player: stop moving. DotNetInput calls this in place of a held move.
+func _neutralise() -> void:
+	move = Vector2.ZERO
+
+
 func _equals(other: DotNetInput) -> bool:
 	return other != null and other.get_script() == get_script() \
 		and (other.get("move") as Vector2).is_equal_approx(move)

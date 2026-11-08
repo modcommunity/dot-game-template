@@ -22,7 +22,7 @@ var _client_side: Node = null
 
 
 func _ready() -> void:
-	checks = 61
+	checks = 62
 	_run.call_deferred()
 
 
@@ -30,6 +30,7 @@ func _run() -> void:
 	print("dot-game-template: a server and a client over a socket")
 	DotPaths.remove_tree(SERVER_DIR)
 	_test_kinds_fit()
+	_test_neutralise()
 	await _test_map_menu_solo()
 	var booted := await _boot()
 	if booted:
@@ -63,6 +64,15 @@ func _test_kinds_fit() -> void:
 
 
 ## M with no server: the client scene run on its own (no link yet), and the choice is the change.
+func _test_neutralise() -> void:
+	section("a silent player's command stops moving")
+	var command := preload("res://game/net/tpl_command.gd").new()
+	command.move = Vector2(0.6, -0.8)
+	command._neutralise()
+	check(command.move == Vector2.ZERO, "neutralise zeroes the move")
+	done()
+
+
 func _test_map_menu_solo() -> void:
 	section("M: the map menu, solo")
 	var solo: Node = (load(CLIENT_SCENE) as PackedScene).instantiate()
