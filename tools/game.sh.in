@@ -73,6 +73,13 @@ MIN_TIMEOUTS="@{MIN_TIMEOUTS}"
 # tools/verify_ui.sh checks that drive the real client under xvfb.
 UI_CHECKS="@{UI_CHECKS}"
 #@end
+#@if suite_shards
+# A suite too long for one run, as name=shard,shard,...: `test NAME` plays each shard as its own
+# `examples/NAME.tscn -- --shard SHARD` (up to $SHARD_JOBS at once, default 4) and then runs the
+# suite once more as `-- --merge LOG...` over the shards' logs, which holds the whole-run checks.
+# `test NAME.SHARD` plays one shard. `suites --shards` lists the shards instead of the suite.
+SUITE_SHARDS="@{SUITE_SHARDS}"
+#@end
 #@if suite_timeouts
 TIMEOUT_GIVEN=0
 # A suite that legitimately runs longer than the default, as name=seconds. An explicit
@@ -172,25 +179,32 @@ run_ui_check() {
 
 #@end
 run_suite() {
+#@if suite_shards
+    # NAME is a suite, or SUITE.SHARD; ARGS (after NAME) go to the scene as user args.
+    local scene="$1" base="${1%%.*}"
+    shift
+    local extra=("$@")
+    case "$scene" in *.*) extra=(--shard "${scene#*.}" "$@") ;; esac
+#@end
 #@if suite_timeouts
-    local scene="$1" log out status summary kv TIMEOUT="$TIMEOUT"
+    local @{SCENE_DECL}log out status summary kv TIMEOUT="$TIMEOUT"
     if [ "$TIMEOUT_GIVEN" -eq 0 ]; then
-        for kv in $SUITE_TIMEOUTS; do [ "${kv%%=*}" = "$scene" ] && TIMEOUT="${kv#*=}"; done
+        for kv in $SUITE_TIMEOUTS; do [ "${kv%%=*}" = "$@{BASE}" ] && TIMEOUT="${kv#*=}"; done
     fi
 #@else
-    local scene="$1" log out status summary
+    local @{SCENE_DECL}log out status summary
 #@end
-    [ -f "examples/$scene.tscn" ] || { printf '  %s??%s   %s: no examples/%s.tscn\n' "$YLW" "$OFF" "$scene" "$scene"; return 1; }
+    [ -f "examples/$@{BASE}.tscn" ] || { printf '  %s??%s   %s: no examples/%s.tscn\n' "$YLW" "$OFF" "$scene" "$@{BASE}"; return 1; }
     mkdir -p .godot/test-logs
     log=".godot/test-logs/$scene.log"
     [ -t 1 ] && printf '  ..   %s' "$scene"
 #@if min_timeouts
     local limit="$TIMEOUT" mkv
     for mkv in $MIN_TIMEOUTS; do
-        [ "${mkv%%=*}" = "$scene" ] && [ "$limit" -lt "${mkv#*=}" ] && limit="${mkv#*=}"
+        [ "${mkv%%=*}" = "$@{BASE}" ] && [ "$limit" -lt "${mkv#*=}" ] && limit="${mkv#*=}"
     done
 #@end
-    timeout @{LIMIT} "$GODOT" --headless --path . "res://examples/$scene.tscn"@{SUITE_ARGS_SH} >"$log" 2>&1
+    timeout @{LIMIT} "$GODOT" --headless --path . "res://examples/$@{BASE}.tscn"@{SUITE_ARGS_SH}@{SHARD_ARGS_SH} >"$log" 2>&1
     status=$?
     summary="$(grep -Eo '[0-9]+ (passed|checks), [0-9]+ failed' "$log" | tail -1)"
     # Section accounting: "N sections entered, M finished" from DotGameCheckSuite._report_sections.
@@ -296,6 +310,37 @@ check_weapon_art() {
 }
 
 #@end
+#@if suite_shards
+# The shards of suite $1 (space separated), empty when it is not sharded.
+shards_of() {
+    local kv
+    for kv in $SUITE_SHARDS; do [ "${kv%%=*}" = "$1" ] && { printf '%s' "${kv#*=}" | tr ',' ' '; return 0; }; done
+}
+
+# Plays every shard of suite $1, up to $SHARD_JOBS at once, then the suite over their logs.
+run_sharded() {
+    local base="$1" shard tmp logs="" bad=0 running=0
+    tmp="$(mktemp -d)"
+    for shard in $(shards_of "$base"); do
+        ( run_suite "$base.$shard" > "$tmp/$shard.out" 2>&1; echo $? > "$tmp/$shard.rc" ) &
+        running=$((running + 1))
+        [ "$running" -ge "${SHARD_JOBS:-4}" ] && { wait -n; running=$((running - 1)); }
+    done
+    wait
+    for shard in $(shards_of "$base"); do
+        cat "$tmp/$shard.out"
+        [ "$(cat "$tmp/$shard.rc" 2>/dev/null)" = 0 ] || bad=1
+        logs="$logs .godot/test-logs/$base.$shard.log"
+    done
+    rm -rf "$tmp"
+    if [ "$bad" -ne 0 ]; then
+        printf '  %sFAIL%s %s: a shard failed, so there is nothing to merge\n' "$RED" "$OFF" "$base"
+        return 1
+    fi
+    run_suite "$base" --merge $logs
+}
+
+#@end
 do_test() {
 #@if suite_args
     # Everything after a literal `--` goes to each suite as user args (e.g. `test headless_maps -- --map=ID`).
@@ -342,6 +387,12 @@ do_test() {
     echo "running the suites"
     local scene
     for scene in ${*:-$SUITES}; do
+#@if suite_shards
+        if [ -n "$(shards_of "${scene%.tscn}")" ]; then
+            run_sharded "${scene%.tscn}" || fails=$((fails + 1))
+            continue
+        fi
+#@end
         run_suite "${scene%.tscn}" || fails=$((fails + 1))
     done
 #@if ui_checks
@@ -405,6 +456,14 @@ case "$cmd" in
         ;;
 #@end
     suites)
+#@if suite_shards
+        if [ "${1:-}" = "--shards" ]; then
+            for s in $SUITES; do
+                if [ -n "$(shards_of "$s")" ]; then printf '%s\n' $(for sh in $(shards_of "$s"); do echo "$s.$sh"; done); else echo "$s"; fi
+            done
+            exit 0
+        fi
+#@end
         printf '%s\n' $SUITES
         ;;
 #@if coldstart

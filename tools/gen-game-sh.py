@@ -15,6 +15,8 @@ game.conf is KEY=VALUE lines, shell quoting, '#' comments:
   SUITES_COMMENT                            comment lines above SUITES; use \\n for a newline
   MIN_TIMEOUTS="suite=secs ..."             with min_timeouts: a suite's limit is raised to at least secs
   UI_CHECKS="name ..."                      with ui_checks: tools/verify_ui.sh checks run under xvfb
+  SUITE_SHARDS="suite=a,b ..."             with suite_shards: `test suite` plays suite.a, suite.b (`-- --shard a`) up to
+                                            $SHARD_JOBS at once, then the suite once over their logs (`-- --merge LOG...`)
 Further FEATURES: suite_args (`test NAME -- ARGS`), content_links (the .gitignore
 "# bootstrap-link:" paths must exist), gitignore_optional (addons under "# bootstrap-optional"
 are not required), coldstart (tools/cold_start.tscn), visual, perf (commands that run tools/visual_check.sh, tools/perf_budget.sh).
@@ -23,9 +25,9 @@ Template syntax: '#@if NAME' / '#@else' / '#@end' lines (no nesting) and @{VAR}.
 import os, re, shlex, stat, sys
 
 FEATURES = {"soak", "weapon_art", "suite_timeouts", "netchaos", "tool_checks", "min_timeouts", "ui_checks",
-            "suite_args", "content_links", "gitignore_optional", "visual", "perf", "coldstart"}
+            "suite_args", "suite_shards", "content_links", "gitignore_optional", "visual", "perf", "coldstart"}
 DEFAULTS = {"EXTRA_PACKS": "", "SOAK_ARG": "MAP", "SOAK_FLAGS": "", "TIMEOUT_DEFAULT": "900",
-            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "FEATURES": ""}
+            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "FEATURES": ""}
 REQUIRED = ("GAME_NAME", "PACK", "SUITES")
 
 def die(msg):
@@ -56,9 +58,14 @@ def render(template, conf):
     conf = dict(conf, LIMIT='"$limit"' if "min_timeouts" in feats else '"$TIMEOUT"',
                 LIMIT_MSG="${limit}" if "min_timeouts" in feats else "${TIMEOUT}",
                 SUITE_ARGS_SH=' ${SUITE_ARGS[@]+-- "${SUITE_ARGS[@]}"}' if "suite_args" in feats else "")
-    for need, key in (("min_timeouts", "MIN_TIMEOUTS"), ("ui_checks", "UI_CHECKS"), ("suite_timeouts", "SUITE_TIMEOUTS")):
+    for need, key in (("min_timeouts", "MIN_TIMEOUTS"), ("ui_checks", "UI_CHECKS"), ("suite_timeouts", "SUITE_TIMEOUTS"), ("suite_shards", "SUITE_SHARDS")):
         if need in feats and not conf[key]:
             die("FEATURES has %s but %s is empty" % (need, key))
+    if "suite_shards" in feats and "suite_args" in feats:
+        die("suite_shards and suite_args both pass user args to a suite: pick one")
+    shards = "suite_shards" in feats
+    conf = dict(conf, BASE="base" if shards else "scene", SCENE_DECL="" if shards else 'scene="$1" ')
+    conf = dict(conf, SHARD_ARGS_SH=' ${extra[@]+-- "${extra[@]}"}' if "suite_shards" in feats else "")
     conf = dict(conf, SOAK_USAGE=("[%s] [MIN]" % conf["SOAK_ARG"]).ljust(16))
     comment = conf["SUITES_COMMENT"].replace("\\n", "\n")
     conf = dict(conf, SUITES_COMMENT=comment + "\n" if comment else "")
