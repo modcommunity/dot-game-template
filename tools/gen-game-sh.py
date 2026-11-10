@@ -27,7 +27,7 @@ import os, re, shlex, stat, sys
 FEATURES = {"soak", "weapon_art", "suite_timeouts", "netchaos", "tool_checks", "min_timeouts", "ui_checks",
             "suite_args", "suite_shards", "content_links", "gitignore_optional", "visual", "perf", "coldstart"}
 DEFAULTS = {"EXTRA_PACKS": "", "SOAK_ARG": "MAP", "SOAK_FLAGS": "", "TIMEOUT_DEFAULT": "900",
-            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "FEATURES": ""}
+            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SHARD_EXTRA": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "FEATURES": ""}
 REQUIRED = ("GAME_NAME", "PACK", "SUITES")
 
 def die(msg):
@@ -57,12 +57,11 @@ def render(template, conf):
         die("unknown FEATURES: %s" % " ".join(sorted(feats - FEATURES)))
     conf = dict(conf, LIMIT='"$limit"' if "min_timeouts" in feats else '"$TIMEOUT"',
                 LIMIT_MSG="${limit}" if "min_timeouts" in feats else "${TIMEOUT}",
-                SUITE_ARGS_SH=' ${SUITE_ARGS[@]+-- "${SUITE_ARGS[@]}"}' if "suite_args" in feats else "")
+                SUITE_ARGS_SH=' ${SUITE_ARGS[@]+-- "${SUITE_ARGS[@]}"}' if "suite_args" in feats and "suite_shards" not in feats else "",
+                SHARD_EXTRA='; extra=(${SUITE_ARGS[@]+"${SUITE_ARGS[@]}"} ${extra[@]+"${extra[@]}"})' if "suite_args" in feats else "")
     for need, key in (("min_timeouts", "MIN_TIMEOUTS"), ("ui_checks", "UI_CHECKS"), ("suite_timeouts", "SUITE_TIMEOUTS"), ("suite_shards", "SUITE_SHARDS")):
         if need in feats and not conf[key]:
             die("FEATURES has %s but %s is empty" % (need, key))
-    if "suite_shards" in feats and "suite_args" in feats:
-        die("suite_shards and suite_args both pass user args to a suite: pick one")
     shards = "suite_shards" in feats
     conf = dict(conf, BASE="base" if shards else "scene", SCENE_DECL="" if shards else 'scene="$1" ')
     conf = dict(conf, SHARD_ARGS_SH=' ${extra[@]+-- "${extra[@]}"}' if "suite_shards" in feats else "")
