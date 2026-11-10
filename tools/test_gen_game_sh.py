@@ -165,5 +165,20 @@ with tempfile.TemporaryDirectory() as tmp:
     rc, out, log = run(["test", "alpha"], cwd=d4, e=dict(env, GODOT=os.path.join(tmp, "godot_bad")))
     check("a failed shard fails the suite and is not merged", rc == 1 and "--merge" not in log and "a shard failed" in out, out + log)
 
+    # defs: the site import files, through the addon repositories' exporters
+    d5 = os.path.join(tmp, "defs")
+    rc, out = make(d5, BASE + 'FEATURES="defs"\nDEFS_ACH="res://game/a.gd:catalogue"\nDEFS_LB="res://game/b.gd:boards"\n')
+    for addon in ("dot_achievements", "dot_leaderboard"):
+        repo = os.path.join(tmp, addon.replace("_", "-"))
+        os.makedirs(os.path.join(repo, "addons", addon))
+        os.makedirs(os.path.join(repo, "tools"))
+        open(os.path.join(repo, "tools", "export_site_defs.gd"), "w").write("")
+        os.symlink(os.path.join(repo, "addons", addon), os.path.join(d5, "addons", addon))
+    rc, out = sh(["./game.sh", "defs", "--check"], d5, env)
+    log = open(env["FAKE_LOG"]).read()
+    check("defs runs both exporters", rc == 0 and "--source res://game/a.gd --method catalogue --out deployment/achievement-defs.json --check" in log
+          and "--source res://game/b.gd --method boards --out deployment/leaderboard-defs.json --check" in log, out + log)
+    check("defs without a feature conf is refused", make(os.path.join(tmp, "nodefs"), BASE + 'FEATURES="defs"\n')[0] != 0)
+
 print("%d failed" % fails if fails else "all passed")
 sys.exit(1 if fails else 0)

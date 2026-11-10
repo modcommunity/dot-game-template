@@ -9,6 +9,8 @@ game.sh differs from what the template and game.conf produce (CI runs this).
 game.conf is KEY=VALUE lines, shell quoting, '#' comments:
   GAME_NAME, PACK, EXTRA_PACKS, SUITES      the settings every game has
   FEATURES="soak weapon_art ..."            blocks of the template to keep (see FEATURES)
+  DEFS_ACH="res://game/x.gd:catalogue"      with the defs feature: static method returning the DotAchievementCatalogue
+  DEFS_LB="res://game/y.gd:boards"          ... and the one returning Array[DotLeaderboardDef] (either may be empty)
   SOAK_ARG (default MAP), SOAK_FLAGS        soak: help-text word, extra godot flags ("--fixed-fps 60 ")
   TIMEOUT_DEFAULT (default 900), TIMEOUT_NOTE   default per-suite timeout and a help-text note
   SUITE_TIMEOUTS="suite=secs ..."           with the suite_timeouts feature
@@ -19,15 +21,15 @@ game.conf is KEY=VALUE lines, shell quoting, '#' comments:
                                             $SHARD_JOBS at once, then the suite once over their logs (`-- --merge LOG...`)
 Further FEATURES: suite_args (`test NAME -- ARGS`), content_links (the .gitignore
 "# bootstrap-link:" paths must exist), gitignore_optional (addons under "# bootstrap-optional"
-are not required), coldstart (tools/cold_start.tscn), visual, perf (commands that run tools/visual_check.sh, tools/perf_budget.sh).
+are not required), coldstart (tools/cold_start.tscn), visual, defs (`game.sh defs`), perf (commands that run tools/visual_check.sh, tools/perf_budget.sh).
 Template syntax: '#@if NAME' / '#@else' / '#@end' lines (no nesting) and @{VAR}.
 """
 import os, re, shlex, stat, sys
 
 FEATURES = {"soak", "weapon_art", "suite_timeouts", "netchaos", "tool_checks", "min_timeouts", "ui_checks",
-            "suite_args", "suite_shards", "content_links", "gitignore_optional", "visual", "perf", "coldstart"}
+            "suite_args", "suite_shards", "content_links", "gitignore_optional", "visual", "perf", "coldstart", "defs"}
 DEFAULTS = {"EXTRA_PACKS": "", "SOAK_ARG": "MAP", "SOAK_FLAGS": "", "TIMEOUT_DEFAULT": "900",
-            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SHARD_EXTRA": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "FEATURES": ""}
+            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SHARD_EXTRA": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "DEFS_ACH": "", "DEFS_LB": "", "FEATURES": ""}
 REQUIRED = ("GAME_NAME", "PACK", "SUITES")
 
 def die(msg):
@@ -62,6 +64,8 @@ def render(template, conf):
     for need, key in (("min_timeouts", "MIN_TIMEOUTS"), ("ui_checks", "UI_CHECKS"), ("suite_timeouts", "SUITE_TIMEOUTS"), ("suite_shards", "SUITE_SHARDS")):
         if need in feats and not conf[key]:
             die("FEATURES has %s but %s is empty" % (need, key))
+    if "defs" in feats and not (conf["DEFS_ACH"] or conf["DEFS_LB"]):
+        die("FEATURES has defs but DEFS_ACH and DEFS_LB are empty")
     shards = "suite_shards" in feats
     conf = dict(conf, BASE="base" if shards else "scene", SCENE_DECL="" if shards else 'scene="$1" ')
     conf = dict(conf, SHARD_ARGS_SH=' ${extra[@]+-- "${extra[@]}"}' if "suite_shards" in feats else "")

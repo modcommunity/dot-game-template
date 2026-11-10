@@ -14,6 +14,9 @@
 #@if suite_args
 #   ./game.sh test NAME -- ARGS    pass ARGS to the suite (e.g. test headless_maps -- --map=ID)
 #@end
+#@if defs
+#   ./game.sh defs [--check]       write deployment/achievement-defs.json and leaderboard-defs.json (the site's import files)
+#@end
 #@if soak
 #   ./game.sh soak @{SOAK_USAGE}bot soak on tools/soak.tscn (report in .godot/test-logs/soak-@{SOAK_ARG}.json)
 #@end
@@ -413,6 +416,18 @@ do_test() {
     return 1
 }
 
+#@if defs
+# defs_run ADDON_DIR TOOL_NAME SPEC OUT [--check]: SPEC is "res://file.gd:static_method"; the exporter ships with the addon
+# repository (dot-achievements, dot-leaderboard), found through the game's addons/ link.
+defs_run() {
+    local addon="$1" spec="$2" out="$3" tool; shift 3
+    [ -n "$spec" ] || return 0
+    tool="$(readlink -f "addons/$addon")/../../tools/export_site_defs.gd"
+    [ -f "$tool" ] || die "No exporter at $tool (addons/$addon must link into its repository)." 2
+    "$GODOT" --headless --path . --script "$tool" -- --source "${spec%:*}" --method "${spec##*:}" --out "$out" "$@"
+}
+
+#@end
 case "$cmd" in
     play)
         check_addons
@@ -451,6 +466,16 @@ case "$cmd" in
         timeout "$TIMEOUT" "$GODOT" --headless @{SOAK_FLAGS}--path . res://tools/soak.tscn -- "${soak_args[@]}" "$@" \
             2>&1 | tee .godot/test-logs/soak.log | grep -E '^SOAK|^soak|^TRACE|SCRIPT ERROR|Parse Error|ERROR|FAIL'
         exit "${PIPESTATUS[0]}"
+        ;;
+#@end
+#@if defs
+    defs)
+        check_addons
+        [ -z "${1:-}" ] || [ "$1" = "--check" ] || die "usage: ./game.sh defs [--check]" 2
+        rc=0
+        defs_run dot_achievements "@{DEFS_ACH}" deployment/achievement-defs.json "$@" || rc=1
+        defs_run dot_leaderboard "@{DEFS_LB}" deployment/leaderboard-defs.json "$@" || rc=1
+        exit "$rc"
         ;;
 #@end
 #@if netchaos
