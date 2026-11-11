@@ -18,7 +18,7 @@ Settings layer the same way in every addon, weakest first: the addon's schema de
 
 This template ships `tools/check.sh`. A finished game also has a `game.sh` wrapping the same steps:
 
-`./game.sh` is the one entry point every game repository has (copy it from the reference game, `game-arena`):
+`./game.sh` is the one entry point every game repository has (copy it from the reference game, `game-fatal-contact`):
 
 | Command | Does |
 | --- | --- |
