@@ -1,15 +1,15 @@
 # The addon release tags this game is built and checked against; written by tools/sync-lock.sh.
 # Same tags as dot-server-deploy's addons.lock, so a pack and the server that mounts it agree.
-dot-chat	v0.1.6
-dot-console	v0.1.9
-dot-core	v0.1.41
-dot-game	v0.1.54
-dot-map	v0.1.81
-dot-menu	v0.1.27
-dot-net	v0.1.28
-dot-profile	v0.1.23
-dot-server	v0.1.29
-dot-settings	v0.1.6
-dot-ui	v0.1.18
+dot-chat	v0.1.7
+dot-console	v0.1.10
+dot-core	v0.1.46
+dot-game	v0.1.57
+dot-map	v0.1.87
+dot-menu	v0.1.28
+dot-net	v0.1.31
+dot-profile	v0.1.25
+dot-server	v0.1.32
+dot-settings	v0.1.7
+dot-ui	v0.1.19
 dot-vote	v0.1.17
-dot-workbench	v0.3.1
+dot-workbench	v0.3.2
