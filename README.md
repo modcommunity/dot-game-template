@@ -14,7 +14,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## Settings, and the commands your game gets
 
-Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addon/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addon/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](../dot-core/docs/addon-config.md).
+Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addon/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addon/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](https://github.com/modcommunity/dot-core/blob/main/docs/addon-config.md).
 
 This template ships `tools/check.sh`. A finished game also has a `game.sh` wrapping the same steps:
 
@@ -168,7 +168,7 @@ Then run the checks (section 7) and play it (sections 4 and 5).
 
 ### Culling for your level (optional)
 
-A big level draws every room in the frustum. dot-map can bake occluders from your walls and floors and give each door a portal that hides the room behind it while shut: [add culling to your level in 5 minutes](../dot-map/docs/culling.md). Off unless you add it; Coin Grab does not use it.
+A big level draws every room in the frustum. dot-map can bake occluders from your walls and floors and give each door a portal that hides the room behind it while shut: [add culling to your level in 5 minutes](https://github.com/modcommunity/dot-map/blob/main/docs/culling.md). Off unless you add it; Coin Grab does not use it.
 
 ## 7. The pack rules, and what the check catches
 
