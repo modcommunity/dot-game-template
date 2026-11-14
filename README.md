@@ -1,5 +1,3 @@
-# dot-game-template
-
 Start a multiplayer game for the TMC platform from here. This repository is a small, complete, networked game — **Coin Grab** — written the way the platform wants a game written, so that the day you push a tag, anybody running a server can install it and anybody with the client can play it without downloading anything but your game.
 
 It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself runs anywhere Godot does).
