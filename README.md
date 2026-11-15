@@ -194,9 +194,9 @@ git tag v0.1.0 && git push origin v0.1.0
 
 The release workflow runs the checks, then attaches three files to the GitHub Release: `crate-rush-0.1.0.tar.gz` (the source), `crate-rush-0.1.0-pack.zip` (the game as a pack: imported, without addons, examples or tools, with a `requires.json` — section 10) and `SHA256SUMS`. It signs nothing; the site does.
 
-Then, on the TMC website:
+Then, on the [Gamespice](https://gamespice.net) website:
 
-1. **Add your game to the Gamespice.** Open the Godot page (`/godot`), press **Add Game!**, pick the Gamespice collection and game or minigame, and create it. You own its page: its settings, its own categories, which site-wide categories mods and servers under it may use, and who else may manage it (**Permissions**). It comes with a **content asset**, the asset whose releases are your game's packs; its **Repository name** field is the name your pack is published under, so make it your repository's name. It locks once a pack has been published under it. (Already published your game as an asset? Link that asset on the game's **Content** tab instead, and your pack keeps its name.)
+1. **Add your game to Gamespice.** Open the Godot page (`/godot`), press **Add Game!**, pick the Gamespice collection and game or minigame, and create it. You own its page: its settings, its own categories, which site-wide categories mods and servers under it may use, and who else may manage it (**Permissions**). It comes with a **content asset**, the asset whose releases are your game's packs; its **Repository name** field is the name your pack is published under, so make it your repository's name. It locks once a pack has been published under it. (Already published your game as an asset? Link that asset on the game's **Content** tab instead, and your pack keeps its name.)
 2. On the content asset (the game page's **Releases & packs**), open **Releases from a repository**, paste `https://github.com/<you>/crate-rush`, and **Save**.
 3. Press **Verify ownership**. Release files are only fetched from a repository you have proven is yours (GitHub only).
 4. Switch on **Also fetch the release files** and **Publish as a content pack**, then press **Pull now** (or tick **Check every night**).
