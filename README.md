@@ -1,4 +1,4 @@
-Start a multiplayer game for the TMC platform from here. This repository is a small, complete, networked game — **Coin Grab** — written the way the platform wants a game written, so that the day you push a tag, anybody running a server can install it and anybody with the client can play it without downloading anything but your game.
+Start a multiplayer game for the [Gamespice](https://gamespice.net) platform from here. This repository is a small, complete, networked game — **Coin Grab** — written the way the platform wants a game written, so that the day you push a tag, anybody running a server can install it and anybody with the client can play it without downloading anything but your game.
 
 It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself runs anywhere Godot does).
 
@@ -196,7 +196,7 @@ The release workflow runs the checks, then attaches three files to the GitHub Re
 
 Then, on the TMC website:
 
-1. **Add your game to the TMC Gaming Platform.** Open the Godot page (`/godot`), press **Add Game!**, pick the Dot collection and game or minigame, and create it. You own its page: its settings, its own categories, which site-wide categories mods and servers under it may use, and who else may manage it (**Permissions**). It comes with a **content asset**, the asset whose releases are your game's packs; its **Repository name** field is the name your pack is published under, so make it your repository's name. It locks once a pack has been published under it. (Already published your game as an asset? Link that asset on the game's **Content** tab instead, and your pack keeps its name.)
+1. **Add your game to the Gamespice.** Open the Godot page (`/godot`), press **Add Game!**, pick the Gamespice collection and game or minigame, and create it. You own its page: its settings, its own categories, which site-wide categories mods and servers under it may use, and who else may manage it (**Permissions**). It comes with a **content asset**, the asset whose releases are your game's packs; its **Repository name** field is the name your pack is published under, so make it your repository's name. It locks once a pack has been published under it. (Already published your game as an asset? Link that asset on the game's **Content** tab instead, and your pack keeps its name.)
 2. On the content asset (the game page's **Releases & packs**), open **Releases from a repository**, paste `https://github.com/<you>/crate-rush`, and **Save**.
 3. Press **Verify ownership**. Release files are only fetched from a repository you have proven is yours (GitHub only).
 4. Switch on **Also fetch the release files** and **Publish as a content pack**, then press **Pull now** (or tick **Check every night**).
