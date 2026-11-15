@@ -80,7 +80,7 @@ That renames every `tpl_` file and every `Tpl` name to your prefix (`game/cr_gam
 The game is built on the dot-* addons (dot-core, dot-net, dot-server, dot-game, dot-menu with dot-ui and dot-settings for the menu and the scoreboard, dot-console for the console, dot-chat for the self-mute list behind dot-ui's chat box, dot-vote for the map menu and the vote on a server, and dot-map for subscribed map packs in solo). They are not copied into your repository: the `/addons/<name>` lines in `.gitignore` are the list, and one script reads it and links them:
 
 ```bash
-git clone https://github.com/modcommunity/dot-ci ../dot-ci
+git clone https://github.com/gamespice-platform/ci ../dot-ci
 ../dot-ci/scripts/resolve-deps.sh .
 ```
 
