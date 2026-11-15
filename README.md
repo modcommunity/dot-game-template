@@ -12,7 +12,7 @@ It needs Godot 4.7 and a Linux or macOS shell for the tools (the game itself run
 
 ## Settings, and the commands your game gets
 
-Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addon/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addon/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](https://github.com/modcommunity/dot-core/blob/main/docs/addon-config.md).
+Settings layer the same way in every addon, weakest first: the addon's schema defaults, the addon's shipped `cfg/addon/<addon>/`, the game's `cfg/game/<game>/<addon>/`, the server operator's `cfg/server/addon/<addon>/` and `cfg/server/game/<game>/`, then environment variables, then the command line, then runtime changes (a console `set`). The folder is the addon name with `-` written as `_`. Secrets are read from files only: a key marked sensitive is refused from the environment and the command line. Details: [dot-core's addon-config.md](https://github.com/gamespice-platform/core/blob/main/docs/addon-config.md).
 
 This template ships `tools/check.sh`. A finished game also has a `game.sh` wrapping the same steps:
 
@@ -63,7 +63,7 @@ Small as it is, it is the whole shape of a platform game:
 On GitHub, press **Use this template** on this repository and create yours. Or by hand:
 
 ```bash
-git clone --depth 1 https://github.com/modcommunity/dot-game-template crate-rush
+git clone --depth 1 https://github.com/gamespice-platform/game-template crate-rush
 cd crate-rush && rm -rf .git && git init -b main
 ```
 
@@ -88,7 +88,7 @@ That clones the addons into `.deps/` (ignored) and links them into `addons/`, **
 
 This template matches dot-server-deploy at the tags in its `addons.lock`; read the versions from `addons.lock` itself, and run `tools/sync-lock.sh` whenever dot-server-deploy moves, because a lock that falls behind fails to parse (an old dot-core under a newer dot-profile). `resolve-deps.sh` clones over https; to use ssh remotes, set `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=url.git@github.com:.insteadOf GIT_CONFIG_VALUE_0=https://github.com/` first.
 
-Working inside the whole family instead? [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap) clones every repository side by side and links every project's addons in one go (`./bootstrap.sh`), this one included.
+Working inside the whole family instead? [dot-bootstrap](https://github.com/gamespice-platform/bootstrap) clones every repository side by side and links every project's addons in one go (`./bootstrap.sh`), this one included.
 
 ## 4. Play it offline
 
@@ -101,10 +101,10 @@ WASD or the arrow keys, or hold a finger or the mouse where you want to go.
 
 ## 5. A dedicated server and a client, on your machine
 
-The server is [dot-server-deploy](https://github.com/modcommunity/dot-server-deploy), the same tool every server on the platform runs. Beside your game:
+The server is [dot-server-deploy](https://github.com/gamespice-platform/server-deploy), the same tool every server on the platform runs. Beside your game:
 
 ```bash
-git clone https://github.com/modcommunity/dot-server-deploy ../dot-server-deploy
+git clone https://github.com/gamespice-platform/server-deploy ../dot-server-deploy
 cd ../dot-server-deploy
 ./setup.sh --no-games
 ```
@@ -166,7 +166,7 @@ Then run the checks (section 7) and play it (sections 4 and 5).
 
 ### Culling for your level (optional)
 
-A big level draws every room in the frustum. dot-map can bake occluders from your walls and floors and give each door a portal that hides the room behind it while shut: [add culling to your level in 5 minutes](https://github.com/modcommunity/dot-map/blob/main/docs/culling.md). Off unless you add it; Coin Grab does not use it.
+A big level draws every room in the frustum. dot-map can bake occluders from your walls and floors and give each door a portal that hides the room behind it while shut: [add culling to your level in 5 minutes](https://github.com/gamespice-platform/map/blob/main/docs/culling.md). Off unless you add it; Coin Grab does not use it.
 
 ## 7. The pack rules, and what the check catches
 

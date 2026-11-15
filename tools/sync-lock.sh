@@ -20,7 +20,7 @@ SERVER_LOCK="$DEPLOY/addons.lock"
         repo="${a//_/-}"
         ref=""
         [ -f "$SERVER_LOCK" ] && ref="$(awk -v r="$repo" '$1 == r { print $2; exit }' "$SERVER_LOCK")"
-        [ -n "$ref" ] || ref="$(git ls-remote --tags --refs "https://github.com/modcommunity/$repo" 2>/dev/null \
+        [ -n "$ref" ] || ref="$(git ls-remote --tags --refs "https://github.com/gamespice-platform/${repo#dot-}" 2>/dev/null \
             | sed 's|.*refs/tags/||' | sort -V | tail -1)"
         [ -n "$ref" ] || { echo "no release tag for $repo yet: locked to main, cut one" >&2; ref=main; }
         printf '%s\t%s\n' "$repo" "$ref"

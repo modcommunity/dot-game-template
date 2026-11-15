@@ -39,7 +39,7 @@ fi
 server="${1:-../dot-server-deploy}/addons.lock"
 if [ ! -f "$server" ]; then
     tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-    if timeout 60 git clone -q --depth 1 "https://github.com/modcommunity/dot-server-deploy" "$tmp" 2>/dev/null; then
+    if timeout 60 git clone -q --depth 1 "https://github.com/gamespice-platform/server-deploy" "$tmp" 2>/dev/null; then
         server="$tmp/addons.lock"
     else
         echo "check-lock: dot-server-deploy unreachable, skipped (not a failure)"; exit 0

@@ -1,6 +1,6 @@
 # dot-game-template
 
-The repository a third-party developer copies to start a game on the platform: a small, complete, playable networked game (Coin Grab), and its README is the guide. It is the organisation's (`modcommunity/dot-game-template`), not a game author's, because it is part of the platform's front door.
+The repository a third-party developer copies to start a game on the platform: a small, complete, playable networked game (Coin Grab), and its README is the guide. It is the organisation's (`gamespice-platform/game-template`), not a game author's, because it is part of the platform's front door.
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first, then dot-game's, dot-net's and dot-server-deploy's own. The reasoning is in [docs/design.md](docs/design.md).
 
