@@ -4,14 +4,24 @@ extends DotGameCheckSuite
 ## Run: godot --headless --path . res://examples/headless_config.tscn
 
 const TplConfig := preload("../game/tpl_config.gd")
-const CHECKS := 13
-const ROOT := "user://tpl_cfgtest"
+const CHECKS := 14
+## One directory per suite process (the probe child is handed its parent's): user:// is shared by
+## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
+const ROOT_ARG := "--cfgroot="
+var ROOT := _root()
 const GAME := "dot-game-template"
 
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.FATAL)
 	_run.call_deferred()
+
+
+func _root() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(ROOT_ARG):
+			return a.substr(ROOT_ARG.length())
+	return "user://tpl_cfgtest_%d" % OS.get_process_id()
 
 
 func _run() -> void:
@@ -37,13 +47,13 @@ func _run() -> void:
 	_check(config.coin_value == 7 and binder.source_of("coin_value") == "cvar", "a cvar writes the field")
 	_check(binder.diff_yaml().contains("coin_value: 7"), "the diff names the edit")
 
-	var bad := FileAccess.open("user://tpl_config_bad.json", FileAccess.WRITE)
+	var bad := FileAccess.open(ROOT + "_config_bad.json", FileAccess.WRITE)
 	bad.store_string('{"no_such_field": 1}')
 	bad.close()
-	var strict := TplConfig.make_binder(TplConfig.new(), "user://tpl_config_bad.json")
+	var strict := TplConfig.make_binder(TplConfig.new(), ROOT + "_config_bad.json")
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
-	DirAccess.remove_absolute("user://tpl_config_bad.json")
+	DirAccess.remove_absolute(ROOT + "_config_bad.json")
 
 	_layers()
 	_templates(binder)
@@ -73,7 +83,7 @@ func _write(rel: String, text: String) -> void:
 func _child() -> String:
 	var out: Array = []
 	var _code := OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-		"res://examples/headless_config.tscn", "--", "--probe", "--tpl-extra-coins=9"], out, true)
+		"res://examples/headless_config.tscn", "--", "--probe", ROOT_ARG + ROOT, "--tpl-extra-coins=9"], out, true)
 	return "".join(PackedStringArray(out))
 
 
@@ -90,7 +100,8 @@ func _layers() -> void:
 	_check(text.contains("coin=5") and text.contains("coin_src=env"), "the environment beats the cfg file")
 	_write(file, "no_such_key: 1\n")
 	_check(_child().contains("PROBE ok=false"), "strict: an unknown key in the file is refused")
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(ROOT.path_join(file)))
+	var removed := DotPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
+	_check(removed.ok and not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(ROOT)), "the per-process cfg fixture directory is removed", ROOT if removed.ok else str(removed.error))
 
 
 ## The shipped cfg files hold every key, in step with TplConfig.
