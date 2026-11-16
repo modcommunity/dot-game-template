@@ -27,7 +27,7 @@ func cli_prefix() -> String:
 
 @export_group("Rules")
 ## What one coin is worth.
-@export_range(1, 1000, 1) var coin_value: int = 1
+@export_range(1, 1000, 1, "or_greater") var coin_value: int = 1
 
 ## Coins on the field beyond the arena's own number.
-@export_range(0, 200, 1) var extra_coins: int = 0
+@export_range(0, 200, 1, "or_greater") var extra_coins: int = 0

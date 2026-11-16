@@ -49,6 +49,8 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 
 ## Rules that bite
 
+- No hard caps in `TplConfig`: an `@export_range` has a floor and `"or_greater"`, never an upper bound unless the number is a unit (a fraction, a percentage); a value below the floor is refused by the cvar, never clamped, and `headless_config` fails on a capped field. Regenerate the shipped yml with `addons/dot_game/qa/dot_game_cfg_templates.gd`.
+
 - Keep it small: a feature a newcomer does not need on day one goes in the README as a next step, not in the code.
 - No `class_name`; every `res://` string naming the game's own files through `TplPaths.rebase()`; `extends`/`preload`/scene paths relative. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
 - `TplGame.step` is pure; nothing that differs between machines may reach it, and the client predicts with the decoded input. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)

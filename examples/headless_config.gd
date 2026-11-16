@@ -4,7 +4,7 @@ extends DotGameCheckSuite
 ## Run: godot --headless --path . res://examples/headless_config.tscn
 
 const TplConfig := preload("../game/tpl_config.gd")
-const CHECKS := 14
+const CHECKS := 18
 ## One directory per suite process (the probe child is handed its parent's): user:// is shared by
 ## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
 const ROOT_ARG := "--cfgroot="
@@ -54,6 +54,19 @@ func _run() -> void:
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
 	DirAccess.remove_absolute(ROOT + "_config_bad.json")
+
+	# No hard caps: nothing has an upper bound, a cvar takes far more than the old 1000/200, and below the floor is refused, not clamped.
+	var capped := PackedStringArray()
+	for e: Dictionary in binder.schema():
+		if e.has("max"):
+			capped.append(e["key"])
+	_check(capped.is_empty(), "no field has an upper cap", ",".join(capped))
+	console.set_cvar("tpl_coin_value", "100000")
+	_check(config.coin_value == 100000, "a coin may be worth more than the old cap of 1000")
+	console.set_cvar("tpl_extra_coins", "5000")
+	_check(config.extra_coins == 5000, "extra coins pass the old cap of 200")
+	console.set_cvar("tpl_coin_value", "0")
+	_check(config.coin_value == 100000, "below the floor is refused, never clamped")
 
 	_layers()
 	_templates(binder)
