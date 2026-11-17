@@ -180,5 +180,17 @@ with tempfile.TemporaryDirectory() as tmp:
           and "--source res://game/b.gd --method boards --out deployment/leaderboard-defs.json --check" in log, out + log)
     check("defs without a feature conf is refused", make(os.path.join(tmp, "nodefs"), BASE + 'FEATURES="defs"\n')[0] != 0)
 
+    # 5. the settings the converted games carry: fixed fps, mobile pack, glob-safe .gitignore, defs help, notes
+    d6 = os.path.join(tmp, "extras")
+    rc, out = make(d6, BASE + 'FEATURES="min_timeouts fixed_fps mobile_pack gitignore_noglob defs"\nMIN_TIMEOUTS="alpha=7"\n'
+                   'FIXED_FPS="alpha=132"\nDEFS_ACH="res://game/a.gd:catalogue"\nTIMEOUT_NOTE="; a\\n#  b"\n'
+                   'MIN_TIMEOUTS_COMMENT="# one\\n# two"\n')
+    txt = open(os.path.join(d6, "game.sh")).read()
+    check("extras render and parse", rc == 0 and sh(["bash", "-n", "game.sh"], d6)[0] == 0, out)
+    check("fixed fps reaches godot", '--fixed-fps "${mkv#*=}"' in txt and "GS_PACK_ETC2_ASTC" in txt and "[^/*]" in txt)
+    check("defs help names only the achievement file without DEFS_LB", "achievement-defs.json (the site's" in txt)
+    check("notes and comments take newlines", "; a\n#  b)" in txt and "# one\n# two\nMIN_TIMEOUTS=" in txt)
+    check("fixed_fps without min_timeouts is refused", make(os.path.join(tmp, "bad3"), BASE + 'FEATURES="fixed_fps"\nFIXED_FPS="a=1"\n')[0] != 0)
+
 print("%d failed" % fails if fails else "all passed")
 sys.exit(1 if fails else 0)

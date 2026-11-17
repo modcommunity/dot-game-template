@@ -12,14 +12,17 @@ game.conf is KEY=VALUE lines, shell quoting, '#' comments:
   DEFS_ACH="res://game/x.gd:catalogue"      with the defs feature: static method returning the DotAchievementCatalogue
   DEFS_LB="res://game/y.gd:boards"          ... and the one returning Array[DotLeaderboardDef] (either may be empty)
   SOAK_ARG (default MAP), SOAK_FLAGS        soak: help-text word, extra godot flags ("--fixed-fps 60 ")
-  TIMEOUT_DEFAULT (default 900), TIMEOUT_NOTE   default per-suite timeout and a help-text note
+  TIMEOUT_DEFAULT (default 900), TIMEOUT_NOTE   default per-suite timeout and a help-text note (\\n for a newline)
   SUITE_TIMEOUTS="suite=secs ..."           with the suite_timeouts feature
   SUITES_COMMENT                            comment lines above SUITES; use \\n for a newline
   MIN_TIMEOUTS="suite=secs ..."             with min_timeouts: a suite's limit is raised to at least secs
+  MIN_TIMEOUTS_COMMENT                      comment lines above MIN_TIMEOUTS (\\n for a newline); default is the standard two lines
+  FIXED_FPS="suite=fps ..."                 with fixed_fps: suite frames stepped at a fixed rate (engine --fixed-fps)
   UI_CHECKS="name ..."                      with ui_checks: tools/verify_ui.sh checks run under xvfb
   SUITE_SHARDS="suite=a,b ..."             with suite_shards: `test suite` plays suite.a, suite.b (`-- --shard a`) up to
                                             $SHARD_JOBS at once, then the suite once over their logs (`-- --merge LOG...`)
-Further FEATURES: suite_args (`test NAME -- ARGS`), content_links (the .gitignore
+Further FEATURES: mobile_pack (GS_PACK_ETC2_ASTC=1 imports mobile texture variants when packing), gitignore_noglob (a
+"/addons/*" glob line in .gitignore is not an addon), fixed_fps, suite_args (`test NAME -- ARGS`), content_links (the .gitignore
 "# bootstrap-link:" paths must exist), gitignore_optional (addons under "# bootstrap-optional"
 are not required), coldstart (tools/cold_start.tscn), visual, defs (`game.sh defs`), perf (commands that run tools/visual_check.sh, tools/perf_budget.sh).
 Template syntax: '#@if NAME' / '#@else' / '#@end' lines (no nesting) and @{VAR}.
@@ -27,9 +30,10 @@ Template syntax: '#@if NAME' / '#@else' / '#@end' lines (no nesting) and @{VAR}.
 import os, re, shlex, stat, sys
 
 FEATURES = {"soak", "weapon_art", "suite_timeouts", "netchaos", "tool_checks", "min_timeouts", "ui_checks",
-            "suite_args", "suite_shards", "content_links", "gitignore_optional", "visual", "perf", "coldstart", "defs"}
+            "suite_args", "suite_shards", "content_links", "gitignore_optional", "visual", "perf", "coldstart", "defs", "fixed_fps", "mobile_pack", "gitignore_noglob"}
 DEFAULTS = {"EXTRA_PACKS": "", "SOAK_ARG": "MAP", "SOAK_FLAGS": "", "TIMEOUT_DEFAULT": "900",
-            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SHARD_EXTRA": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "SUITES_COMMENT": "", "DEFS_ACH": "", "DEFS_LB": "", "FEATURES": ""}
+            "TIMEOUT_NOTE": "", "SUITE_TIMEOUTS": "", "SUITE_SHARDS": "", "BASE": "", "SHARD_EXTRA": "", "SCENE_DECL": "", "MIN_TIMEOUTS": "", "UI_CHECKS": "", "FIXED_FPS": "", "MIN_TIMEOUTS_COMMENT": "", "SUITES_COMMENT": "", "DEFS_ACH": "", "DEFS_LB": "", "FEATURES": ""}
+MIN_TIMEOUTS_DEFAULT_COMMENT = "# A suite that legitimately needs at least this long, as name=seconds; a larger\n# --timeout still wins."
 REQUIRED = ("GAME_NAME", "PACK", "SUITES")
 
 def die(msg):
@@ -70,6 +74,14 @@ def render(template, conf):
     conf = dict(conf, BASE="base" if shards else "scene", SCENE_DECL="" if shards else 'scene="$1" ')
     conf = dict(conf, SHARD_ARGS_SH=' ${extra[@]+-- "${extra[@]}"}' if "suite_shards" in feats else "")
     conf = dict(conf, SOAK_USAGE=("[%s] [MIN]" % conf["SOAK_ARG"]).ljust(16))
+    mtc = conf["MIN_TIMEOUTS_COMMENT"].replace("\\n", "\n") or MIN_TIMEOUTS_DEFAULT_COMMENT
+    conf = dict(conf, MIN_TIMEOUTS_COMMENT=mtc + "\n",
+                DEFS_HELP=" and leaderboard-defs.json" if conf["DEFS_LB"] else "",
+                ADDON_CLASS="^/*" if "gitignore_noglob" in feats else "^/")
+    if "fixed_fps" in feats and not (conf["FIXED_FPS"] and "min_timeouts" in feats):
+        die("FEATURES has fixed_fps but FIXED_FPS is empty or min_timeouts is missing")
+    conf = dict(conf, FIXED_SH='${fixed[@]+"${fixed[@]}"} ' if "fixed_fps" in feats else "")
+    conf = dict(conf, TIMEOUT_NOTE=conf["TIMEOUT_NOTE"].replace("\\n", "\n"))
     comment = conf["SUITES_COMMENT"].replace("\\n", "\n")
     conf = dict(conf, SUITES_COMMENT=comment + "\n" if comment else "")
     out, keep, state = [], True, None

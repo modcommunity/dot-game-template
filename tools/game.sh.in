@@ -15,7 +15,7 @@
 #   ./game.sh test NAME -- ARGS    pass ARGS to the suite (e.g. test headless_maps -- --map=ID)
 #@end
 #@if defs
-#   ./game.sh defs [--check]       write deployment/achievement-defs.json and leaderboard-defs.json (the site's import files)
+#   ./game.sh defs [--check]       write deployment/achievement-defs.json@{DEFS_HELP} (the site's import files)
 #@end
 #@if soak
 #   ./game.sh soak @{SOAK_USAGE}bot soak on tools/soak.tscn (report in .godot/test-logs/soak-@{SOAK_ARG}.json)
@@ -68,9 +68,7 @@ GODOT="${GODOT:-godot}"
 TIMEOUT=@{TIMEOUT_DEFAULT}
 PARSE=1
 #@if min_timeouts
-# A suite that legitimately needs at least this long, as name=seconds; a larger
-# --timeout still wins.
-MIN_TIMEOUTS="@{MIN_TIMEOUTS}"
+@{MIN_TIMEOUTS_COMMENT}MIN_TIMEOUTS="@{MIN_TIMEOUTS}"
 #@end
 #@if ui_checks
 # tools/verify_ui.sh checks that drive the real client under xvfb.
@@ -83,6 +81,12 @@ UI_CHECKS="@{UI_CHECKS}"
 # `test NAME.SHARD` plays one shard; `test NAME.merge` only the merge over logs already in .godot/test-logs.
 # `suites --shards` lists the shards instead of the suite (`hv shard` runs them as separate jobs, then NAME.merge).
 SUITE_SHARDS="@{SUITE_SHARDS}"
+#@end
+#@if fixed_fps
+# A suite whose frames are stepped at a fixed rate instead of on the wall clock, as
+# name=frames-per-second (the engine's --fixed-fps): what it measures between a frame and
+# a tick is then the same on an idle box and a starved one.
+FIXED_FPS="@{FIXED_FPS}"
 #@end
 #@if suite_timeouts
 TIMEOUT_GIVEN=0
@@ -128,7 +132,7 @@ check_addons() {
 #@if gitignore_optional
     done < <(awk '/^# bootstrap-optional/{o=1; next} !o && /^\/addons\/[^\/]+\/?$/{sub("^/addons/",""); sub("/$",""); print} {o=0}' .gitignore 2>/dev/null)
 #@else
-    done < <(sed -n 's|^/addons/\([^/]*\)/\{0,1\}$|\1|p' .gitignore 2>/dev/null)
+    done < <(sed -n 's|^/addons/\([@{ADDON_CLASS}]*\)/\{0,1\}$|\1|p' .gitignore 2>/dev/null)
 #@end
     [ -z "$missing" ] || die "Missing addons:$missing
 Run dot-bootstrap first: https://github.com/gamespice-platform/bootstrap" 2
@@ -160,7 +164,18 @@ pack_all() {
         echo "packing $id"
         (cd "$deploy" && ./server pack "$id" --source "$ROOT/../$repo") >/dev/null || die "could not pack $id"
     done
+#@if mobile_pack
+    if [ "${GS_PACK_ETC2_ASTC:-${DOT_PACK_ETC2_ASTC:-0}}" = 1 ]; then
+        # Mobile browsers: ETC2/ASTC variants too (bigger pack). dot-bootstrap's tool; default stays desktop only.
+        local mob="${GS_BOOTSTRAP:-${DOT_BOOTSTRAP:-$ROOT/../dot-bootstrap}}/tools/import-mobile.sh"
+        [ -x "$mob" ] || die "GS_PACK_ETC2_ASTC=1 needs dot-bootstrap's tools/import-mobile.sh beside this game." 2
+        "$mob" "$GODOT" . >/dev/null 2>&1 || die "mobile import failed"
+    else
+        "$GODOT" --headless --path . --import >/dev/null 2>&1
+    fi
+#@else
     "$GODOT" --headless --path . --import >/dev/null 2>&1
+#@end
     echo "packing $PACK"
     (cd "$deploy" && ./server pack "$PACK" --source "$ROOT") >/dev/null || die "could not pack $PACK"
 }
@@ -211,7 +226,13 @@ run_suite() {
         [ "${mkv%%=*}" = "$@{BASE}" ] && [ "$limit" -lt "${mkv#*=}" ] && limit="${mkv#*=}"
     done
 #@end
-    timeout @{LIMIT} "$GODOT" --headless --path . "res://examples/$@{BASE}.tscn"@{SUITE_ARGS_SH}@{SHARD_ARGS_SH} >"$log" 2>&1
+#@if fixed_fps
+    local fixed=()
+    for mkv in $FIXED_FPS; do
+        [ "${mkv%%=*}" = "$@{BASE}" ] && fixed=(--fixed-fps "${mkv#*=}")
+    done
+#@end
+    timeout @{LIMIT} "$GODOT" --headless --path . @{FIXED_SH}"res://examples/$@{BASE}.tscn"@{SUITE_ARGS_SH}@{SHARD_ARGS_SH} >"$log" 2>&1
     status=$?
     summary="$(grep -Eo '[0-9]+ (passed|checks), [0-9]+ failed' "$log" | tail -1)"
     # Section accounting: "N sections entered, M finished" from DotGameCheckSuite._report_sections.
@@ -417,7 +438,7 @@ do_test() {
 }
 
 #@if defs
-# defs_run ADDON_DIR TOOL_NAME SPEC OUT [--check]: SPEC is "res://file.gd:static_method"; the exporter ships with the addon
+# defs_run ADDON_DIR SPEC OUT [--check]: SPEC is "res://file.gd:static_method"; the exporter ships with the addon
 # repository (dot-achievements, dot-leaderboard), found through the game's addons/ link.
 defs_run() {
     local addon="$1" spec="$2" out="$3" tool; shift 3
@@ -429,6 +450,16 @@ defs_run() {
 
 #@end
 case "$cmd" in
+#@if defs
+    defs)
+        check_addons
+        [ -z "${1:-}" ] || [ "$1" = "--check" ] || die "usage: ./game.sh defs [--check]" 2
+        rc=0
+        defs_run dot_achievements "@{DEFS_ACH}" deployment/achievement-defs.json "$@" || rc=1
+        defs_run dot_leaderboard "@{DEFS_LB}" deployment/leaderboard-defs.json "$@" || rc=1
+        exit "$rc"
+        ;;
+#@end
     play)
         check_addons
         [ "${1:-}" = "--" ] && shift
@@ -466,16 +497,6 @@ case "$cmd" in
         timeout "$TIMEOUT" "$GODOT" --headless @{SOAK_FLAGS}--path . res://tools/soak.tscn -- "${soak_args[@]}" "$@" \
             2>&1 | tee .godot/test-logs/soak.log | grep -E '^SOAK|^soak|^TRACE|SCRIPT ERROR|Parse Error|ERROR|FAIL'
         exit "${PIPESTATUS[0]}"
-        ;;
-#@end
-#@if defs
-    defs)
-        check_addons
-        [ -z "${1:-}" ] || [ "$1" = "--check" ] || die "usage: ./game.sh defs [--check]" 2
-        rc=0
-        defs_run dot_achievements "@{DEFS_ACH}" deployment/achievement-defs.json "$@" || rc=1
-        defs_run dot_leaderboard "@{DEFS_LB}" deployment/leaderboard-defs.json "$@" || rc=1
-        exit "$rc"
         ;;
 #@end
 #@if netchaos
