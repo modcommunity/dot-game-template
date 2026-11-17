@@ -354,7 +354,7 @@ func _despawn(player_id: int) -> int:
 	_nets.erase(player_id)
 	if behaviour == null:
 		return 0
-	var net_id := behaviour.identity.net_id
+	var net_id: int = behaviour.identity.net_id
 	net.registry.unregister(net_id)
 	behaviour.get_parent().queue_free()
 	return net_id
