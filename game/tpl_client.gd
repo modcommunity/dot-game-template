@@ -30,7 +30,7 @@ var local_id: int = 0
 ## Solo only: the subscribed map packs this client follows (null connected).
 var workshop: TplWorkshop = null
 
-## dot-game's platform layer: the loading cover (its [code]gate[/code]), the menu, the
+## GameSpice Game's platform layer: the loading cover (its [code]gate[/code]), the menu, the
 ## console, the keys. See [method _ready].
 var platform: DotGameClient = null
 
@@ -47,7 +47,7 @@ var _touch_at: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	# First, before anything is drawn: the loading cover (dot-core's load gate). Add your own
+	# First, before anything is drawn: the loading cover (GameSpice Core's load gate). Add your own
 	# holds on `platform.gate`: `gate.hold(&"map", "Loading")` now, `gate.release(&"map")` when
 	# built. Nothing else is held at first but the local player.
 	platform = DotGameClient.new()
@@ -81,7 +81,7 @@ func _ready() -> void:
 	_build_menu()
 	_build_chat(offline)
 	# The settings, the menu, the console (the key under Escape), the HUD in the player's
-	# theme and HUD size, Tab and M: dot-game's, from what was just built.
+	# theme and HUD size, Tab and M: GameSpice Game's, from what was just built.
 	platform.hud = _hud_root
 	platform.chat = chat
 	platform.board_snapshot_fn = board_snapshot
@@ -103,7 +103,7 @@ func _ready() -> void:
 		_join()
 
 
-## Settings and the Escape menu, from dot-menu; [DotGameClient] sets them up.
+## Settings and the Escape menu, from GameSpice Menu; [DotGameClient] sets them up.
 ## Only the stock settings this game can apply (window, V-Sync, frame-rate cap, theme, counter):
 ## a switch that changes nothing is worse than none. Add groups back as the game grows them.
 func _build_menu() -> void:
@@ -119,7 +119,7 @@ func _build_menu() -> void:
 	settings.config.show_help = false
 	settings.config.show_leave = false
 	platform.settings = settings
-	# Pass a Theme for your game's accent (dot-ui's DotHudPiece colours `highlight` and
+	# Pass a Theme for your game's accent (GameSpice UI's DotHudPiece colours `highlight` and
 	# `plate_edge`); null is the menu's theme alone.
 	platform.hud_accent = null
 
@@ -150,11 +150,11 @@ func board_snapshot() -> Dictionary:
 
 ## The chat box: Y opens it, Enter sends, Escape closes. This game routes no chat of its own: lines go to the server
 ## through [method DotClientLink.send_chat] and return on [signal DotClientLink.chat_received]. `!sm` and `/sm` never
-## leave this machine (dot-chat's self-mute); muted lines are dropped in [method _on_chat_line].
+## leave this machine (GameSpice Chat's self-mute); muted lines are dropped in [method _on_chat_line].
 func _build_chat(offline: bool) -> void:
 	chat = DotChatWindow.new()
 	chat.name = "Chat"
-	# No teams here, so no team-chat key (dot-ui's default is U).
+	# No teams here, so no team-chat key (GameSpice UI's default is U).
 	chat.team_action = &""
 	chat.channels = [{"id": &"all", "label": "Say", "colour": Color(0.88, 0.90, 0.94)}]
 	# Under the HUD's root, so the menu's theme and HUD size reach it too.

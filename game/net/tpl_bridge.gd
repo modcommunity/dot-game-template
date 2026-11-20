@@ -7,11 +7,11 @@ const TplLink := preload("tpl_link.gd")
 const TplPlayerNet := preload("tpl_player_net.gd")
 const TplRequest := preload("tpl_request.gd")
 
-## The only file that names both the game and dot-net; everything on the wire starts or ends here.
+## The only file that names both the game and GameSpice Net; everything on the wire starts or ends here.
 ## Four things travel through [TplLink]: snapshots, inputs (the last few intents, every tick),
 ## events (hello, arena, coins, spawn, despawn) and requests (ready).
 
-## The acknowledgement dot-net puts in front of every input. Fixed width, so it goes first.
+## The acknowledgement GameSpice Net puts in front of every input. Fixed width, so it goes first.
 const ACK_BYTES := 4
 
 ## Commands in every input packet: this tick's and the four before it.
@@ -26,7 +26,7 @@ var game: TplGame = null
 var net: DotNetManager = null
 var link: TplLink = null
 
-## Client side: the round trip in ms. dot-net owns no socket, so it cannot measure one.
+## Client side: the round trip in ms. GameSpice Net owns no socket, so it cannot measure one.
 var rtt_source: Callable = Callable()
 
 ## Client side: which player is ours. 0 until the hello.
@@ -86,7 +86,7 @@ func open_link(parent: Node) -> void:
 	DotGameLink.attach(link, parent, self, TplLink.NODE_NAME)
 
 
-## Every byte dot-net sends leaves here. Snapshots are its only unreliable traffic.
+## Every byte GameSpice Net sends leaves here. Snapshots are its only unreliable traffic.
 func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 	if link == null:
 		return
@@ -130,7 +130,7 @@ func remove_peer(peer_id: int) -> void:
 		net.remove_peer(peer_id)
 
 
-## One authoritative tick. dot-net applies each peer's input, simulates every player (see
+## One authoritative tick. GameSpice Net applies each peer's input, simulates every player (see
 ## TplPlayerNet._net_simulate) and sends a snapshot when one is due.
 func server_tick(tick: int) -> void:
 	_tick = tick
@@ -204,7 +204,7 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> void:
 	)
 	if commands.is_empty():
 		return
-	# Each is buffered for its tick; dot-net sanitises on the one path every input takes.
+	# Each is buffered for its tick; GameSpice Net sanitises on the one path every input takes.
 	# A copy of an already simulated tick is skipped: the buffer would count it LATE, and that
 	# count is how an operator spots a lagging client. The newest is always pushed.
 	var buffer := net.input_buffer_for(peer_id)
@@ -248,7 +248,7 @@ func client_tick(tick: int, intent: Vector2) -> void:
 	sent.read(DotNetReader.new(bytes.to_bytes()))
 	net.local_inputs().push(sent)
 
-	# The commands before this one come from the replay history dot-net already keeps for
+	# The commands before this one come from the replay history GameSpice Net already keeps for
 	# reconciliation; this one goes last whatever the history did with it.
 	var copies: Array = Array(net.local_inputs().recent(INPUT_COPIES - 1, tick - 1))
 	copies.append(sent)

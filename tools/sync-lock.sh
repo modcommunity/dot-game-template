@@ -3,7 +3,7 @@
 #
 # A server (dot-server-deploy) installs the tags in ITS addons.lock, and a pack records the
 # API level of the addons it was built against. Built against the newest main, a pack asked
-# for levels that the tags a server installs did not have yet ("needs dot-net API level 12
+# for levels that the tags a server installs did not have yet ("needs GameSpice Net API level 12
 # or newer; this server has level 11"). resolve-deps.sh reads this file and clones the same
 # tags, so the template and the server agree by construction.
 #

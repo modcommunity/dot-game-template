@@ -217,7 +217,7 @@ func _test_a_coin() -> void:
 	done()
 
 
-## dot-game's "still loading", over the real socket: a player the server holds as behind their
+## GameSpice Game's "still loading", over the real socket: a player the server holds as behind their
 ## cover collects nothing, even standing on a coin, and collects again once the client's
 ## `game.cover` report (the kind DotGameClient sends when its gate opens) lifts it.
 func _test_still_loading() -> void:
@@ -316,7 +316,7 @@ func _test_map_menu() -> void:
 	check(not (module.get("director") as DotVoteDirector).is_voting(), "and no ballot opened")
 
 	# sv_map_menu_alone 0 turns that off: the lone player is told a change needs a vote of the
-	# players here, and no ballot opens (dot-vote's minimum is two humans).
+	# players here, and no ballot opens (GameSpice Vote's minimum is two humans).
 	var alone_cvar := _server.console.find_cvar("sv_map_menu_alone")
 	alone_cvar.force_set("0")
 	maps.last_said = ""

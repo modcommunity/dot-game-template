@@ -14,7 +14,7 @@ const TplPaths := preload("tpl_paths.gd")
 var director: DotVoteDirector = null
 var vote_commands: DotVoteCommands = null
 
-## dot-workbench over the config; the players never see it.
+## GameSpice Workbench over the config; the players never see it.
 var workbench: DotGameWorkbench = null
 
 ## Connected to the server, which outlives this module, so it is let go in [method _game_unload].
@@ -60,7 +60,7 @@ func _game_load() -> DotResult:
 	return DotResult.success(null)
 
 
-## Every config field as a `tpl_<field>` cvar, the cfg/ diff commands, and dot-workbench over the same fields:
+## Every config field as a `tpl_<field>` cvar, the cfg/ diff commands, and GameSpice Workbench over the same fields:
 ## the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
 func _bind_config(binder: DotGameConfigBinder) -> void:
 	if binder == null:
@@ -88,7 +88,7 @@ func _bind_config(binder: DotGameConfigBinder) -> void:
 	binder.bind_commands(add_command)
 
 
-## M on a server: dot-vote's map menu, over a vote of the arenas.
+## M on a server: GameSpice Vote's map menu, over a vote of the arenas.
 ## [b]Who may change the arena is `sv_map_menu_flag`[/b] (`generic` staff by default, `changemap`, `anyone`; `sv_map_menu_alone`
 ## for a lone player); anybody else nominates and rocks the vote (`!rtv`, `!vote 2`). The client half is [method DotMenu.use_maps].
 func _build_map_menu() -> void:
@@ -125,7 +125,7 @@ func _build_map_menu() -> void:
 	director.player_count_fn = func() -> int: return server.playing_sessions().size()
 	# What the vote says goes to everybody's chat box as the server's own line.
 	director.announce_fn = func(line: String) -> void: server.broadcast_message(line)
-	# A voter is `u<userid>` (dot-vote's commands' spelling); the lines name them properly.
+	# A voter is `u<userid>` (GameSpice Vote's commands' spelling); the lines name them properly.
 	director.people_fn = func(voter: StringName) -> Dictionary:
 		var session := server.session_by_userid(String(voter).trim_prefix("u").to_int())
 		return {"name": session.display_name} if session != null else {}
@@ -139,7 +139,7 @@ func _build_map_menu() -> void:
 
 	vote_commands = DotVoteCommands.new()
 	vote_commands.director = director
-	# `!vote 2` rather than dot-vote's default `!votefor 2`: nothing else here is called vote.
+	# `!vote 2` rather than GameSpice Vote's default `!votefor 2`: nothing else here is called vote.
 	vote_commands.names = {"vote": "vote"}
 	var _bound := vote_commands.bind(self)
 	# The menu changes the arena now, through the same function a vote's winner goes through.
@@ -152,7 +152,7 @@ func _build_map_menu() -> void:
 		source.current = id
 		director.begin(id)
 		var _told := report_map(String(id)))
-	# A player who leaves takes their rock-the-vote with them. dot-vote's commands name a voter
+	# A player who leaves takes their rock-the-vote with them. GameSpice Vote's commands name a voter
 	# `u<userid>`.
 	_on_left = func(session: DotClientSession, _reason: String) -> void:
 		director.forget_voter(StringName("u%d" % session.userid))
@@ -175,7 +175,7 @@ func _game_tick(_tick: int, delta: float) -> void:
 		director.advance(delta)
 
 
-## This game's column on the Tab board. dot-server already sends every player's name, ping
+## This game's column on the Tab board. GameSpice Server already sends every player's name, ping
 ## and time connected; this adds the one thing only the game knows, per player.
 func _game_board_fields(session: Object) -> Dictionary:
 	var who: TplGame.Player = (game as TplGame).player(int(session.get("userid"))) if game != null else null

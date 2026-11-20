@@ -4,13 +4,13 @@ const TplCommand := preload("tpl_command.gd")
 const TplGame := preload("../tpl_game.gd")
 
 ## One player, as the netcode sees them, the same script everywhere: the server moves them and
-## collects coins; the owning client predicts ahead (dot-net rewinds and replays); every other
+## collects coins; the owning client predicts ahead (GameSpice Net rewinds and replays); every other
 ## client only receives and interpolates.
 
 var game: TplGame = null
 var player: TplGame.Player = null
 
-# Replicated. dot-net sends only what changed since what each client confirmed.
+# Replicated. GameSpice Net sends only what changed since what each client confirmed.
 var net_x: float = 0.0
 var net_y: float = 0.0
 var net_score: int = 0
@@ -49,14 +49,14 @@ func _net_simulate(_tick: int, delta: float) -> void:
 
 
 ## A snapshot arrived. For the local player this is the rewind half of prediction: the
-## server's answer is adopted and dot-net replays the unacknowledged inputs on top of it.
+## server's answer is adopted and GameSpice Net replays the unacknowledged inputs on top of it.
 func _net_state_applied(_tick: int) -> void:
 	if player == null:
 		return
 
 	player.position = Vector2(net_x, net_y)
 	player.score = net_score
-	# Not the node, on a predicted player: dot-net reads the node to measure how wrong the
+	# Not the node, on a predicted player: GameSpice Net reads the node to measure how wrong the
 	# prediction was, and the server's answer written there first would hide the answer.
 	if not identity.is_predicted():
 		_place()
@@ -70,7 +70,7 @@ func _net_interpolated(_tick: int) -> void:
 		_place()
 
 
-## The node follows the player, because dot-net reads the node to judge distance and error.
+## The node follows the player, because GameSpice Net reads the node to judge distance and error.
 func _place() -> void:
 	var node := identity.entity as Node2D if identity != null else null
 	if node != null:

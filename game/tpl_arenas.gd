@@ -33,7 +33,7 @@ static func find(id: StringName) -> Dictionary:
 	return workshop.get(id, {})
 
 
-## The M menu's rows (dot-menu's `DotMenuMaps` and dot-vote's `DotVoteMapMenu` take the same
+## The M menu's rows (GameSpice Menu's `DotMenuMaps` and GameSpice Vote's `DotVoteMapMenu` take the same
 ## shape), with [param current] marked.
 static func rows(current: StringName) -> Array:
 	var out: Array = []

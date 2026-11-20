@@ -9,7 +9,7 @@
 # script constants (TplGame -> CrGame), the module and command names (tpl_status -> cr_status)
 # and the log channels. Lowercase letters and digits, starting with a letter, twelve at most.
 #
-# <repo-name> replaces `dot-game-template`: project.godot's name, game.yml's placeholder
+# <repo-name> replaces `gs-game-template`: project.godot's name, game.yml's placeholder
 # content id, the docs. Use your repository's name exactly. The site publishes your game as
 # <your site username>/<repo name> and refuses a name that is not lowercase a-z, 0-9, - and _
 # (no leading, trailing or doubled _), so this refuses the same names now rather than then.

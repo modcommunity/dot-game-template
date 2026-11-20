@@ -93,7 +93,7 @@ var size: Vector2 = arena["size"]
 var collected: int = 0
 
 ## `func(player_id: int) -> bool`: whether that player may be affected now. The module assigns
-## dot-game's `can_be_harmed` on a server and leaves it unset everywhere else (offline nobody
+## GameSpice Game's `can_be_harmed` on a server and leaves it unset everywhere else (offline nobody
 ## is behind a cover). See [method can_be_harmed].
 var harm_gate: Callable = Callable()
 
@@ -176,7 +176,7 @@ static func step(from: Vector2, intent: Vector2, delta: float, walls: Vector2 = 
 
 
 ## One tick of [param who]'s movement, remembering where it began for [method Player.drawn_position].
-## On a client's own player this runs again for every tick dot-net replays after a correction,
+## On a client's own player this runs again for every tick GameSpice Net replays after a correction,
 ## so what is remembered is the last replayed tick's, which is the one on screen.
 func move(who: Player, delta: float) -> void:
 	who.drawn_two_back = who.drawn_from
@@ -207,7 +207,7 @@ func collect(who: Player) -> int:
 
 
 ## Whether [param player_id] is in play: false while their client is behind its loading cover
-## (dot-game's "still loading", asked of the module through [member harm_gate]). True for anyone
+## (GameSpice Game's "still loading", asked of the module through [member harm_gate]). True for anyone
 ## the gate does not know: offline, and a bot, which never loads.
 func can_be_harmed(player_id: int) -> bool:
 	return not harm_gate.is_valid() or bool(harm_gate.call(player_id))
@@ -239,7 +239,7 @@ static func colour_of(id: int) -> Color:
 
 
 ## The state, for a console command or a bug report. A delivered game's host cannot name this
-## class, so this is also how dot-server-deploy's suite asks the world what it has.
+## class, so this is also how GameSpice Server Deploy's suite asks the world what it has.
 func describe() -> Dictionary:
 	var scores := {}
 	for id: int in players:

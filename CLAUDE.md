@@ -1,4 +1,4 @@
-# dot-game-template
+# GameSpice Game Template
 
 The repository a third-party developer copies to start a game on the platform: a small, complete, playable networked game (Coin Grab), and its README is the guide. It is the organisation's (`gamespice-platform/game-template`), not a game author's, because it is part of the platform's front door.
 
@@ -21,9 +21,9 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, then dot-game's, dot-net's a
 | `game/tpl_arenas.gd` | the maps, as data: id, name, size, coin count, floor; what M lists |
 | `game/tpl_workshop.gd`, `provides.json` | Workshop maps, solo only: `accepts` map kind `coin_arena`; a pack map's `scene` is a JSON arena document read into `TplArenas.workshop`, played through `change_arena` |
 | `game/tpl_module.gd`, `tpl_server.gd` | the thin `DotGameModule` (plus the arena vote and the M menu's server half) and the server scene |
-| `game/tpl_client.gd`, `tpl_view.gd` | the client (settings through `DotMenuSettings`, console through `DotConsoleKit`, chat through dot-ui's `DotChatWindow`) and drawing |
+| `game/tpl_client.gd`, `tpl_view.gd` | the client (settings through `DotMenuSettings`, console through `DotConsoleKit`, chat through GameSpice UI's `DotChatWindow`) and drawing |
 | `game/tpl_paths.gd` | `rebase()` / `rebase_onto()` for delivery |
-| `game/net/` | `tpl_bridge.gd` (the only file naming the game and dot-net), `tpl_link.gd` (the one `@rpc` node), `tpl_command.gd`, `tpl_event.gd`, `tpl_request.gd`, `tpl_player_net.gd` |
+| `game/net/` | `tpl_bridge.gd` (the only file naming the game and GameSpice Net), `tpl_link.gd` (the one `@rpc` node), `tpl_command.gd`, `tpl_event.gd`, `tpl_request.gd`, `tpl_player_net.gd` |
 | `examples/` | `headless_config`, `headless_workbench`, `headless_rules`, `headless_net`, `headless_pack`, `headless_workshop`, and `suite.gd` (sections and a CHECKS total) |
 | `tools/cover_server.tscn`, `tools/render_cover.sh` | a real client on a real server in a second process, rendered under the loading cover and just after it lifts (`screenshots/`, ignored) |
 | `tools/shot_workshop.tscn` | renders a solo pack map (`../../tools/screenshot.sh dot-game-template out.png --wait 6 --scene res://tools/shot_workshop.tscn`) |
@@ -41,7 +41,7 @@ godot --headless --path . res://examples/headless_pack.tscn    # the pack rules
 ../../tools/screenshot.sh dot-game-template out.png --wait 6   # look at it
 ```
 
-Every suite shares `examples/suite.gd`: sections entered against sections completed, and a CHECKS total, because a script error aborts a section silently. dot-server-deploy's `template_client` is the only place it runs mounted, and it packages this repository's HEAD.
+Every suite shares `examples/suite.gd`: sections entered against sections completed, and a CHECKS total, because a script error aborts a section silently. GameSpice Server Deploy's `template_client` is the only place it runs mounted, and it packages this repository's HEAD.
 
 ## The games' game.sh is generated
 
@@ -61,7 +61,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 - `_intent` returns zero while the chat box is open, before the steer hook: keys are polled, and a focused line does not stop that. [design](docs/design.md#chat-and-why-it-is-in)
 - Chat goes through `DotClientLink.send_chat` and comes back on `chat_received`; never draw a line on send, and never send `!sm`/`/sm` (the box runs them). [design](docs/design.md#chat-and-why-it-is-in)
 - Every arena fits inside `TplGame.ARENA`, the range positions are sent in; arena ids are the wire (the ARENA event names one). The server sends ARENA before COINS, on admit and on every change. [design](docs/design.md#arenas-and-the-m-menu)
-- M is dot-menu's `use_maps` on the client and dot-vote's map menu on the server; who may change directly is `sv_map_menu_flag` (`generic`, staff, by default), everybody else gets a vote. Change the arena only through `TplGame.change_arena`, which the menu, the vote and solo all call. [design](docs/design.md#arenas-and-the-m-menu)
+- M is GameSpice Menu's `use_maps` on the client and GameSpice Vote's map menu on the server; who may change directly is `sv_map_menu_flag` (`generic`, staff, by default), everybody else gets a vote. Change the arena only through `TplGame.change_arena`, which the menu, the vote and solo all call. [design](docs/design.md#arenas-and-the-m-menu)
 - **Workshop maps are solo only.** The client calls `TplWorkshop.follow()` offline; a server never does, so the vote and the online M list stay `TplArenas.LIST` (ids are the wire). `TplWorkshop.accepted()` equals `provides.json`'s `map_kinds`; `headless_workshop` compares them.
 - **Still loading.** `TplGame.collect` asks `can_be_harmed(player_id)` first, the one choke point; the module assigns `harm_gate = can_be_harmed` on a server only (offline nobody loads). Anything new that hurts or takes from a player asks the same, and `headless_net` fails if `collect` stops asking. The client must not replace `platform.gate.cover` without freeing the stock one (it does not).
 - **A game with maps takes dropped maps through `DotMapDropIntake` and refuses unsupported drops out loud.** That covers a file or folder dropped on the window, dropped on the executable, or named with `--map-path=`; the intake comes from dot-map API 26 or later. Register one acceptor per kind the game can load. It returns `{}` for "not mine", and the intake then says what the game takes. Otherwise it returns `{added, errors}`. Gate the hookup at runtime so that older dot-map builds still run. Take the game's own config flags out of the arguments before looking for paths, so that a folder passed as a flag's value is not read as a drop. Models: PLAYLOT `game/client/playlot_map_drop.gd`, hide-n-seek `game/hs_map_drop.gd`, and each game's `headless_mapdrop`.
@@ -76,7 +76,7 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
   ```
 - RPC methods are named `_rpc_*`, never a Node virtual. [design](docs/design.md#the-shape-and-why-each-piece-is-the-one-it-is)
 - The HUD is a full-rect root Control the menu themes and scales (`settings.menu.follow_hud(root, accent)`, by name); put everything the HUD draws under it, and give your accent as a Theme rather than colouring Labels by hand.
-- Commit before trusting dot-server-deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
+- Commit before trusting GameSpice Server Deploy's `template_client`: it packages HEAD. [design](docs/design.md#the-pack-rules-enforced-in-three-places)
 - `tools/rename.sh` leaves Markdown alone and refuses a repository name the site cannot use as a pack id; `tools/check.sh` must keep the survivor check. [design](docs/design.md#the-rename)
 - Every export preset keeps `cfg/*` in `include_filter` (`export_presets.example.cfg` has it; copy it to `export_presets.cfg`). Exports drop `.yml`, so without it the addons' `cfg/addon/*/*.yml` defaults vanish from a build and nothing errors. dot-ci's `check-export-filter.sh` fails a repository without it. Web presets also need `*.html`; add `sounds/ambience/*.json` when the game ships a DotAmbience set (moods.json is not a resource).
 - Add an addon only by adding its `/addons/<name>` line to `.gitignore` and using it; a pack is checked against the addons it names.
@@ -84,6 +84,6 @@ Every suite shares `examples/suite.gd`: sections entered against sections comple
 
 ## Not here yet
 
-- **Voice, moderation and chat channels of the game's own.** `DotGameServices` is the way (mg-buses-from-hell's `bfh_services.gd` is the short example), with `send_chat`/`send_voice` on the bridge. Chat itself is in, through dot-server's own chat manager; routing it through the game is the step for team or proximity channels.
+- **Voice, moderation and chat channels of the game's own.** `DotGameServices` is the way (mg-buses-from-hell's `bfh_services.gd` is the short example), with `send_chat`/`send_voice` on the bridge. Chat itself is in, through GameSpice Server's own chat manager; routing it through the game is the step for team or proximity channels.
 - **An exit probe.** The family's `dedicated` suites re-run themselves in a second process to catch "leaked at exit"; add it when the game grows.
 - **The site half of the README is described, not run here.** Sections 8 and 9 follow website-city's `publish_release.ts` and `pack-id.ts`, and a server installing `someone/dot-game-template` from a site-shaped local origin was run end to end; a release published through the real site has not been verified from this repository.

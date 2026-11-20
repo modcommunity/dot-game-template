@@ -1,7 +1,7 @@
 extends DotConfig
 
 ## This game's server tunables. Every exported field becomes a `tpl_<field>` cvar, a game.yml
-## key, a `TPL_*` environment variable and a `--tpl-*` flag, and shows in dot-workbench.
+## key, a `TPL_*` environment variable and a `--tpl-*` flag, and shows in GameSpice Workbench.
 ## A pack may not declare a `class_name`, so TplGame loads this by preload.
 
 

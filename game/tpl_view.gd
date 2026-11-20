@@ -11,7 +11,7 @@ var game: TplGame = null
 ## Which player to ring in white. 0 until the client knows who it is.
 var local_id: int = 0
 
-## A connected client's dot-net clock, which says how far through its tick a frame is; null
+## A connected client's GameSpice Net clock, which says how far through its tick a frame is; null
 ## offline. Set by the client every frame. See [method frame_alpha].
 var render_clock: Object = null
 
@@ -66,7 +66,7 @@ func _draw() -> void:
 
 ## How far through its tick a frame drawn now is.
 ## Connected, the clock's `render_alpha()`, not the engine's fraction: the clock stretches its ticks while settling, so a
-## physics frame can run none or two. Asked by name for older dot-net. Offline the engine's fraction is exact.
+## physics frame can run none or two. Asked by name for older GameSpice Net. Offline the engine's fraction is exact.
 func frame_alpha() -> float:
 	if render_clock != null and is_instance_valid(render_clock) and render_clock.has_method(&"render_alpha"):
 		return float(render_clock.call(&"render_alpha"))
